@@ -79,7 +79,10 @@ export default function StockCounter() {
   const [itemsPerBox, setItemsPerBox] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
   const [manualProduct, setManualProduct] = useState('');
-  const [additionMode, setAdditionMode] = useState(false);
+  const [kegCounts, setKegCounts] = useState<Record<string, number>>({});
+  const [editingKeg, setEditingKeg] = useState<string | null>(null);
+  const [kegInputValue, setKegInputValue] = useState('');
+  const [showKegAddReplace, setShowKegAddReplace] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -145,30 +148,10 @@ export default function StockCounter() {
       timestamp: new Date().toLocaleString()
     };
 
-    const isManualProduct = currentProduct.product === 'UNKNOWN - Manual Entry Required';
-    const targetList = isManualProduct ? manualEntries : scannedItems;
-    const setTargetList = isManualProduct ? setManualEntries : setScannedItems;
-
-    if (additionMode) {
-      // Check if product already exists in the list
-      const existingIndex = targetList.findIndex(
-        item => item.barcode === currentProduct.barcode && item.product === currentProduct.product
-      );
-
-      if (existingIndex !== -1) {
-        // Add to existing quantity
-        setTargetList(prev => prev.map((item, idx) =>
-          idx === existingIndex
-            ? { ...item, quantity: item.quantity + qty, timestamp: new Date().toLocaleString() }
-            : item
-        ));
-      } else {
-        // Add as new entry
-        setTargetList(prev => [entry, ...prev]);
-      }
+    if (currentProduct.product === 'UNKNOWN - Manual Entry Required') {
+      setManualEntries(prev => [entry, ...prev]);
     } else {
-      // Original behavior - always add as new entry
-      setTargetList(prev => [entry, ...prev]);
+      setScannedItems(prev => [entry, ...prev]);
     }
 
     setCurrentProduct(null);
@@ -222,52 +205,57 @@ export default function StockCounter() {
     setCurrentMode('scan');
   };
 
-  const handleKegSelection = (product: string) => {
-    setCurrentProduct({ barcode: 'KEG', product });
-    setTimeout(() => quantityInputRef.current?.focus(), 100);
+  const handleKegClick = (product: string) => {
+    const currentValue = kegCounts[product] || 0;
+    setEditingKeg(product);
+    setKegInputValue('');
+    setShowKegAddReplace(currentValue > 0);
   };
 
-  const handleKegQuantitySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quantityInput || !currentProduct) return;
+  const handleKegSave = (action: 'add' | 'replace') => {
+    if (!editingKeg || !kegInputValue) return;
 
-    const qty = parseFloat(quantityInput);
-    if (isNaN(qty) || qty <= 0) {
+    const inputQty = parseFloat(kegInputValue);
+    if (isNaN(inputQty) || inputQty <= 0) {
       alert('Please enter a valid quantity');
       return;
     }
 
-    const entry = {
+    const currentQty = kegCounts[editingKeg] || 0;
+    const newQty = action === 'add' ? currentQty + inputQty : inputQty;
+
+    // Update keg counts
+    setKegCounts(prev => ({
+      ...prev,
+      [editingKeg]: newQty
+    }));
+
+    // Update manual entries for export
+    const existingIndex = manualEntries.findIndex(item => item.product === editingKeg);
+    const entry: StockEntry = {
       barcode: 'KEG',
-      product: currentProduct.product,
-      quantity: qty,
+      product: editingKeg,
+      quantity: newQty,
       timestamp: new Date().toLocaleString()
     };
 
-    if (additionMode) {
-      // Check if product already exists in manual entries
-      const existingIndex = manualEntries.findIndex(
-        item => item.product === currentProduct.product
-      );
-
-      if (existingIndex !== -1) {
-        // Add to existing quantity
-        setManualEntries(prev => prev.map((item, idx) =>
-          idx === existingIndex
-            ? { ...item, quantity: item.quantity + qty, timestamp: new Date().toLocaleString() }
-            : item
-        ));
-      } else {
-        // Add as new entry
-        setManualEntries(prev => [entry, ...prev]);
-      }
+    if (existingIndex !== -1) {
+      setManualEntries(prev => prev.map((item, idx) =>
+        idx === existingIndex ? entry : item
+      ));
     } else {
-      // Original behavior - always add as new entry
       setManualEntries(prev => [entry, ...prev]);
     }
 
-    setCurrentProduct(null);
-    setQuantityInput('');
+    setEditingKeg(null);
+    setKegInputValue('');
+    setShowKegAddReplace(false);
+  };
+
+  const handleKegCancel = () => {
+    setEditingKeg(null);
+    setKegInputValue('');
+    setShowKegAddReplace(false);
   };
 
   const handleBoxCount = (e: React.FormEvent) => {
@@ -437,22 +425,6 @@ export default function StockCounter() {
                   onChange={handleFileUpload}
                   className="hidden"
                 />
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={additionMode}
-                    onChange={(e) => setAdditionMode(e.target.checked)}
-                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="font-semibold text-blue-900 flex items-center gap-2">
-                    <Plus size={20} /> Addition Mode
-                  </span>
-                </label>
-                <span className="text-sm text-blue-700">
-                  {additionMode ? 'Quantities will be added to existing entries' : 'Each entry will be separate'}
-                </span>
               </div>
             </div>
           )}
@@ -709,61 +681,94 @@ export default function StockCounter() {
                   <Package size={24} className="text-amber-600" /> Keg & Beverage Counter
                 </h2>
 
-                {!currentProduct ? (
-                  <div className="max-h-96 overflow-y-auto border-2 border-slate-200 rounded-xl">
-                    {KEG_PRODUCTS.map((product, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleKegSelection(product)}
-                        className="w-full text-left p-3 hover:bg-amber-50 border-b last:border-b-0 transition-colors font-medium text-slate-700 hover:text-amber-900"
-                      >
-                        {product}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="bg-amber-50 p-4 rounded-xl mb-4 border border-amber-200">
-                      <div className="font-semibold text-lg text-slate-800">{currentProduct.product}</div>
-                    </div>
+                {editingKeg && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full">
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4">{editingKeg}</h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        {showKegAddReplace && `Current count: ${kegCounts[editingKeg]}`}
+                      </p>
 
-                    <label className="block text-slate-700 mb-2">Quantity</label>
-                    <input
-                      ref={quantityInputRef}
-                      type="number"
-                      step="0.01"
-                      value={quantityInput}
-                      onChange={(e) => setQuantityInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleKegQuantitySubmit(e);
-                        }
-                      }}
-                      placeholder="Enter quantity..."
-                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                      autoFocus
-                    />
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleKegQuantitySubmit}
-                        className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 font-semibold transition-colors"
-                      >
-                        Add to Count
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCurrentProduct(null);
-                          setQuantityInput('');
+                      <label className="block text-slate-700 mb-2">Enter Quantity</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={kegInputValue}
+                        onChange={(e) => setKegInputValue(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !showKegAddReplace) {
+                            handleKegSave('replace');
+                          }
                         }}
-                        className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
-                      >
-                        Cancel
-                      </button>
+                        placeholder="Enter quantity..."
+                        className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        autoFocus
+                      />
+
+                      <div className="flex gap-2">
+                        {showKegAddReplace ? (
+                          <>
+                            <button
+                              onClick={() => handleKegSave('add')}
+                              className="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-lg hover:bg-emerald-700 font-semibold transition-colors"
+                            >
+                              Add (+)
+                            </button>
+                            <button
+                              onClick={() => handleKegSave('replace')}
+                              className="flex-1 bg-amber-600 text-white px-4 py-3 rounded-lg hover:bg-amber-700 font-semibold transition-colors"
+                            >
+                              Replace
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleKegSave('replace')}
+                            className="flex-1 bg-amber-600 text-white px-4 py-3 rounded-lg hover:bg-amber-700 font-semibold transition-colors"
+                          >
+                            Save
+                          </button>
+                        )}
+                        <button
+                          onClick={handleKegCancel}
+                          className="bg-slate-200 text-slate-700 px-4 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-100 sticky top-0">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-700 border-b-2 border-slate-200">Product</th>
+                          <th className="text-right px-4 py-3 font-semibold text-slate-700 border-b-2 border-slate-200 w-24">Count</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {KEG_PRODUCTS.map((product, idx) => {
+                          const count = kegCounts[product] || 0;
+                          return (
+                            <tr
+                              key={idx}
+                              onClick={() => handleKegClick(product)}
+                              className="hover:bg-amber-50 cursor-pointer border-b border-slate-100 transition-colors"
+                            >
+                              <td className="px-4 py-3 text-slate-700">{product}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                                {count > 0 ? count : '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </>
           )}
