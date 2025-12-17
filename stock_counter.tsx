@@ -1,6 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft } from 'lucide-react';
+import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft, Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+const KEG_PRODUCTS = [
+  'Barline XPA Keg 49.5L',
+  'Brookvale Union Ginger Beer Keg 49.5L',
+  'Fixation IPA Keg 49.5L',
+  'Great Northern Sugar Cane 3.5% Keg 49.5L',
+  'Great Northern Light Keg 49.5L',
+  'Hahn Super Dry 3.5% Keg 49.5L',
+  'Hahn Premium Light Keg 49.5L',
+  'James Squire Pale Ale Keg 49.5L',
+  'James Squire One Fifty Lashes Pale Ale Keg 49.5L',
+  'Rescoratio Pale Ale Keg 49.5L',
+  'Little Creatures Pale Ale Keg 49.5L',
+  'Little Creatures Rogers Keg 49.5L',
+  'Stone & Wood Pacific Ale 49.5L',
+  'Tooheys New Keg 49.5L',
+  'White Rabbit Dark Ale Keg 49.5L',
+  'XXXX Gold 49.5L',
+  'Guinness Draught 49.5L',
+  'Heineken Pale Ale 50L',
+  'Kirrin Hoisan 49.5L',
+  'Batch No 9 Tank Per 1L',
+  'Batch Apple Cider Tank Per 1L Keg',
+  'Your Mates Larry Case Ale 49.5L',
+  'Young Henrys Pale Ale 49.5L',
+  'Hard Ballad (Solo) 49.5L Keg',
+  'Canadian Club & Dry Keg 49.5L',
+  'Stone & Wood Hinterland Hazy 49.5L',
+  'Yullis Lager 49.5L',
+  'Stone & Wood Rotator 49.5L',
+  'Tooheys Extra Dry Keg',
+  'Hard Ballad Orange 49.5L',
+  'XXXX Summer Bright Lager',
+  'Stone & Wood Easy Day Pale Ale 49.5L',
+  'Moon Dog Fizzer Hard Cream Soda Cider Keg 49.5L',
+  'Moon Dog Fizzer Hard Cranberry Soda (Per Litre)',
+  'Moon Dog Fizzer Hard Passionfruit (Per Litre)',
+  'Moon Dog Fizzer Hard Peach Iced Tea (Per Litre)',
+  'Moon Dog Fizzer Hard Lemon (Per Litre)',
+  'Moon Dog Fizzer Hard Guava (Per Litre)',
+  'Coffee',
+  'Tea (per 50 bags)',
+  'Choc Powder',
+  'Decaf',
+  'Chai Powder',
+  'St Remio Syrup',
+  'Bulk Post-Mix'
+];
 
 export default function StockCounter() {
   const [productDatabase, setProductDatabase] = useState([]);
@@ -18,7 +66,8 @@ export default function StockCounter() {
   const [itemsPerBox, setItemsPerBox] = useState('');
   const [manualBarcode, setManualBarcode] = useState('');
   const [manualProduct, setManualProduct] = useState('');
-  
+  const [additionMode, setAdditionMode] = useState(false);
+
   const barcodeInputRef = useRef(null);
   const quantityInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -81,10 +130,30 @@ export default function StockCounter() {
       timestamp: new Date().toLocaleString()
     };
 
-    if (currentProduct.product === 'UNKNOWN - Manual Entry Required') {
-      setManualEntries(prev => [entry, ...prev]);
+    const isManualProduct = currentProduct.product === 'UNKNOWN - Manual Entry Required';
+    const targetList = isManualProduct ? manualEntries : scannedItems;
+    const setTargetList = isManualProduct ? setManualEntries : setScannedItems;
+
+    if (additionMode) {
+      // Check if product already exists in the list
+      const existingIndex = targetList.findIndex(
+        item => item.barcode === currentProduct.barcode && item.product === currentProduct.product
+      );
+
+      if (existingIndex !== -1) {
+        // Add to existing quantity
+        setTargetList(prev => prev.map((item, idx) =>
+          idx === existingIndex
+            ? { ...item, quantity: item.quantity + qty, timestamp: new Date().toLocaleString() }
+            : item
+        ));
+      } else {
+        // Add as new entry
+        setTargetList(prev => [entry, ...prev]);
+      }
     } else {
-      setScannedItems(prev => [entry, ...prev]);
+      // Original behavior - always add as new entry
+      setTargetList(prev => [entry, ...prev]);
     }
 
     setCurrentProduct(null);
@@ -136,6 +205,54 @@ export default function StockCounter() {
     setManualProduct('');
     setQuantityInput('');
     setCurrentMode('scan');
+  };
+
+  const handleKegSelection = (product) => {
+    setCurrentProduct({ barcode: 'KEG', product });
+    setTimeout(() => quantityInputRef.current?.focus(), 100);
+  };
+
+  const handleKegQuantitySubmit = (e) => {
+    e.preventDefault();
+    if (!quantityInput || !currentProduct) return;
+
+    const qty = parseFloat(quantityInput);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    const entry = {
+      barcode: 'KEG',
+      product: currentProduct.product,
+      quantity: qty,
+      timestamp: new Date().toLocaleString()
+    };
+
+    if (additionMode) {
+      // Check if product already exists in manual entries
+      const existingIndex = manualEntries.findIndex(
+        item => item.product === currentProduct.product
+      );
+
+      if (existingIndex !== -1) {
+        // Add to existing quantity
+        setManualEntries(prev => prev.map((item, idx) =>
+          idx === existingIndex
+            ? { ...item, quantity: item.quantity + qty, timestamp: new Date().toLocaleString() }
+            : item
+        ));
+      } else {
+        // Add as new entry
+        setManualEntries(prev => [entry, ...prev]);
+      }
+    } else {
+      // Original behavior - always add as new entry
+      setManualEntries(prev => [entry, ...prev]);
+    }
+
+    setCurrentProduct(null);
+    setQuantityInput('');
   };
 
   const handleBoxCount = (e) => {
@@ -283,27 +400,45 @@ export default function StockCounter() {
           )}
 
           {productDatabase.length > 0 && (
-            <div className="mb-6 flex gap-2 flex-wrap">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
-              >
-                <Upload size={18} /> Change Database
-              </button>
-              <button
-                onClick={exportToExcel}
-                disabled={scannedItems.length === 0 && manualEntries.length === 0}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Download size={18} /> Export to Excel
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+            <div className="mb-6">
+              <div className="flex gap-2 flex-wrap mb-4">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+                >
+                  <Upload size={18} /> Change Database
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  disabled={scannedItems.length === 0 && manualEntries.length === 0}
+                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  <Download size={18} /> Export to Excel
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={additionMode}
+                    onChange={(e) => setAdditionMode(e.target.checked)}
+                    className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="font-semibold text-blue-900 flex items-center gap-2">
+                    <Plus size={20} /> Addition Mode
+                  </span>
+                </label>
+                <span className="text-sm text-blue-700">
+                  {additionMode ? 'Quantities will be added to existing entries' : 'Each entry will be separate'}
+                </span>
+              </div>
             </div>
           )}
 
@@ -328,7 +463,7 @@ export default function StockCounter() {
                 autoFocus
               />
               
-              <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="grid grid-cols-2 gap-2 mt-4">
                 <button
                   onClick={() => setCurrentMode('search')}
                   className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
@@ -346,6 +481,12 @@ export default function StockCounter() {
                   className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
                 >
                   <Package size={16} /> Boxes
+                </button>
+                <button
+                  onClick={() => setCurrentMode('kegs')}
+                  className="bg-amber-100 text-amber-800 px-3 py-2 rounded-lg hover:bg-amber-200 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
+                >
+                  <Package size={16} /> Kegs
                 </button>
               </div>
             </div>
@@ -514,7 +655,7 @@ export default function StockCounter() {
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
                     autoFocus
                   />
-                  
+
                   <label className="block text-slate-700 mb-2">Product Name</label>
                   <input
                     type="text"
@@ -523,7 +664,7 @@ export default function StockCounter() {
                     placeholder="Enter product name..."
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
                   />
-                  
+
                   <label className="block text-slate-700 mb-2">Quantity</label>
                   <input
                     type="number"
@@ -533,7 +674,7 @@ export default function StockCounter() {
                     placeholder="Enter quantity..."
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
                   />
-                  
+
                   <button
                     onClick={handleManualEntry}
                     className="w-full bg-slate-800 text-white px-6 py-3 rounded-lg hover:bg-slate-700 font-semibold transition-colors"
@@ -541,6 +682,73 @@ export default function StockCounter() {
                     Add Manual Entry
                   </button>
                 </div>
+              </div>
+            </>
+          )}
+
+          {currentMode === 'kegs' && (
+            <>
+              <BackToScanButton />
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <Package size={24} className="text-amber-600" /> Keg & Beverage Counter
+                </h2>
+
+                {!currentProduct ? (
+                  <div className="max-h-96 overflow-y-auto border-2 border-slate-200 rounded-xl">
+                    {KEG_PRODUCTS.map((product, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleKegSelection(product)}
+                        className="w-full text-left p-3 hover:bg-amber-50 border-b last:border-b-0 transition-colors font-medium text-slate-700 hover:text-amber-900"
+                      >
+                        {product}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="bg-amber-50 p-4 rounded-xl mb-4 border border-amber-200">
+                      <div className="font-semibold text-lg text-slate-800">{currentProduct.product}</div>
+                    </div>
+
+                    <label className="block text-slate-700 mb-2">Quantity</label>
+                    <input
+                      ref={quantityInputRef}
+                      type="number"
+                      step="0.01"
+                      value={quantityInput}
+                      onChange={(e) => setQuantityInput(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleKegQuantitySubmit(e);
+                        }
+                      }}
+                      placeholder="Enter quantity..."
+                      className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                      autoFocus
+                    />
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleKegQuantitySubmit}
+                        className="flex-1 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 font-semibold transition-colors"
+                      >
+                        Add to Count
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCurrentProduct(null);
+                          setQuantityInput('');
+                        }}
+                        className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
