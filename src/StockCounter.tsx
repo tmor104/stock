@@ -1,6 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft, Plus } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+interface Product {
+  barcode: string | number;
+  product: string;
+}
+
+interface StockEntry {
+  barcode: string | number;
+  product: string;
+  quantity: number;
+  timestamp: string;
+  note?: string;
+}
 
 const KEG_PRODUCTS = [
   'Barline XPA Keg 49.5L',
@@ -51,16 +64,16 @@ const KEG_PRODUCTS = [
 ];
 
 export default function StockCounter() {
-  const [productDatabase, setProductDatabase] = useState([]);
-  const [scannedItems, setScannedItems] = useState([]);
-  const [manualEntries, setManualEntries] = useState([]);
+  const [productDatabase, setProductDatabase] = useState<Product[]>([]);
+  const [scannedItems, setScannedItems] = useState<StockEntry[]>([]);
+  const [manualEntries, setManualEntries] = useState<StockEntry[]>([]);
   const [currentMode, setCurrentMode] = useState('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
-  const [currentProduct, setCurrentProduct] = useState(null);
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [editingIndex, setEditingIndex] = useState<string | null>(null);
   const [editQuantity, setEditQuantity] = useState('');
   const [boxCount, setBoxCount] = useState('');
   const [itemsPerBox, setItemsPerBox] = useState('');
@@ -68,9 +81,9 @@ export default function StockCounter() {
   const [manualProduct, setManualProduct] = useState('');
   const [additionMode, setAdditionMode] = useState(false);
 
-  const barcodeInputRef = useRef(null);
-  const quantityInputRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentMode === 'scan' && barcodeInputRef.current) {
@@ -78,25 +91,27 @@ export default function StockCounter() {
     }
   }, [currentMode, currentProduct]);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const data = new Uint8Array(evt.target.result);
+      const result = evt.target?.result;
+      if (!result) return;
+      const data = new Uint8Array(result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: ['barcode', 'product'] });
-      
-      const cleanData = jsonData.slice(1).filter(row => row.barcode && row.product);
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: ['barcode', 'product'] }) as Product[];
+
+      const cleanData = jsonData.slice(1).filter((row: Product) => row.barcode && row.product);
       setProductDatabase(cleanData);
       alert(`Loaded ${cleanData.length} products from spreadsheet`);
     };
     reader.readAsArrayBuffer(file);
   };
 
-  const handleBarcodeSubmit = (e) => {
+  const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
@@ -113,7 +128,7 @@ export default function StockCounter() {
     }
   };
 
-  const handleQuantitySubmit = (e) => {
+  const handleQuantitySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quantityInput || !currentProduct) return;
 
@@ -183,7 +198,7 @@ export default function StockCounter() {
     setTimeout(() => quantityInputRef.current?.focus(), 100);
   };
 
-  const handleManualEntry = (e) => {
+  const handleManualEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualBarcode || !manualProduct || !quantityInput) return;
 
@@ -212,7 +227,7 @@ export default function StockCounter() {
     setTimeout(() => quantityInputRef.current?.focus(), 100);
   };
 
-  const handleKegQuantitySubmit = (e) => {
+  const handleKegQuantitySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quantityInput || !currentProduct) return;
 
@@ -255,7 +270,7 @@ export default function StockCounter() {
     setQuantityInput('');
   };
 
-  const handleBoxCount = (e) => {
+  const handleBoxCount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProduct || !boxCount || !itemsPerBox) return;
 
