@@ -15,56 +15,9 @@ interface StockEntry {
   note?: string;
 }
 
-const KEG_PRODUCTS = [
-  'Barline XPA Keg 49.5L',
-  'Brookvale Union Ginger Beer Keg 49.5L',
-  'Fixation IPA Keg 49.5L',
-  'Great Northern Sugar Cane 3.5% Keg 49.5L',
-  'Great Northern Light Keg 49.5L',
-  'Hahn Super Dry 3.5% Keg 49.5L',
-  'Hahn Premium Light Keg 49.5L',
-  'James Squire Pale Ale Keg 49.5L',
-  'James Squire One Fifty Lashes Pale Ale Keg 49.5L',
-  'Rescoratio Pale Ale Keg 49.5L',
-  'Little Creatures Pale Ale Keg 49.5L',
-  'Little Creatures Rogers Keg 49.5L',
-  'Stone & Wood Pacific Ale 49.5L',
-  'Tooheys New Keg 49.5L',
-  'White Rabbit Dark Ale Keg 49.5L',
-  'XXXX Gold 49.5L',
-  'Guinness Draught 49.5L',
-  'Heineken Pale Ale 50L',
-  'Kirrin Hoisan 49.5L',
-  'Batch No 9 Tank Per 1L',
-  'Batch Apple Cider Tank Per 1L Keg',
-  'Your Mates Larry Case Ale 49.5L',
-  'Young Henrys Pale Ale 49.5L',
-  'Hard Ballad (Solo) 49.5L Keg',
-  'Canadian Club & Dry Keg 49.5L',
-  'Stone & Wood Hinterland Hazy 49.5L',
-  'Yullis Lager 49.5L',
-  'Stone & Wood Rotator 49.5L',
-  'Tooheys Extra Dry Keg',
-  'Hard Ballad Orange 49.5L',
-  'XXXX Summer Bright Lager',
-  'Stone & Wood Easy Day Pale Ale 49.5L',
-  'Moon Dog Fizzer Hard Cream Soda Cider Keg 49.5L',
-  'Moon Dog Fizzer Hard Cranberry Soda (Per Litre)',
-  'Moon Dog Fizzer Hard Passionfruit (Per Litre)',
-  'Moon Dog Fizzer Hard Peach Iced Tea (Per Litre)',
-  'Moon Dog Fizzer Hard Lemon (Per Litre)',
-  'Moon Dog Fizzer Hard Guava (Per Litre)',
-  'Coffee',
-  'Tea (per 50 bags)',
-  'Choc Powder',
-  'Decaf',
-  'Chai Powder',
-  'St Remio Syrup',
-  'Bulk Post-Mix'
-];
-
 export default function StockCounter() {
   const [productDatabase, setProductDatabase] = useState<Product[]>([]);
+  const [kegProducts, setKegProducts] = useState<string[]>([]);
   const [scannedItems, setScannedItems] = useState<StockEntry[]>([]);
   const [manualEntries, setManualEntries] = useState<StockEntry[]>([]);
   const [currentMode, setCurrentMode] = useState('scan');
@@ -87,6 +40,7 @@ export default function StockCounter() {
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kegFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentMode === 'scan' && barcodeInputRef.current) {
@@ -110,6 +64,31 @@ export default function StockCounter() {
       const cleanData = jsonData.slice(1).filter((row: Product) => row.barcode && row.product);
       setProductDatabase(cleanData);
       alert(`Loaded ${cleanData.length} products from spreadsheet`);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleKegFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const result = evt.target?.result;
+      if (!result) return;
+      const data = new Uint8Array(result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
+
+      // Extract first column (product names), skip header row
+      const products = jsonData.slice(1)
+        .map(row => row[0])
+        .filter(item => item && typeof item === 'string' && item.trim());
+
+      setKegProducts(products as string[]);
+      setKegCounts({}); // Reset counts when new list is uploaded
+      alert(`Loaded ${products.length} keg/beverage products`);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -378,14 +357,23 @@ export default function StockCounter() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
-          <h1 className="text-3xl font-bold text-slate-800 mb-6">📦 Stock Wizard</h1>
-          
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-8 mb-6 border border-gray-200">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 rounded-lg shadow-md">
+              <Package size={32} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Stock Wizard</h1>
+              <p className="text-sm text-gray-600">Professional Inventory Management</p>
+            </div>
+          </div>
+
           {productDatabase.length === 0 && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-              <p className="text-amber-900 mb-3 font-medium">Please upload your product database first</p>
+            <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-blue-900 mb-4 font-semibold">Upload Product Database</p>
+              <p className="text-blue-700 text-sm mb-4">Import your products from an Excel file to get started</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -395,7 +383,7 @@ export default function StockCounter() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+                className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all shadow-sm font-medium flex items-center gap-2"
               >
                 <Upload size={20} /> Upload Excel File
               </button>
@@ -404,17 +392,17 @@ export default function StockCounter() {
 
           {productDatabase.length > 0 && (
             <div className="mb-6">
-              <div className="flex gap-2 flex-wrap mb-4">
+              <div className="flex gap-3 flex-wrap">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2"
+                  className="bg-gray-600 text-white px-5 py-2.5 rounded-lg hover:bg-gray-700 transition-all shadow-sm font-medium flex items-center gap-2"
                 >
                   <Upload size={18} /> Change Database
                 </button>
                 <button
                   onClick={exportToExcel}
                   disabled={scannedItems.length === 0 && manualEntries.length === 0}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all shadow-sm font-medium flex items-center gap-2"
                 >
                   <Download size={18} /> Export to Excel
                 </button>
@@ -677,9 +665,38 @@ export default function StockCounter() {
             <>
               <BackToScanButton />
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <Package size={24} className="text-amber-600" /> Keg & Beverage Counter
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Package size={24} className="text-indigo-600" /> Keg & Beverage Counter
+                  </h2>
+                  <button
+                    onClick={() => kegFileInputRef.current?.click()}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium text-sm shadow-sm"
+                  >
+                    <Upload size={16} /> {kegProducts.length > 0 ? 'Change List' : 'Upload List'}
+                  </button>
+                  <input
+                    ref={kegFileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleKegFileUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                {kegProducts.length === 0 && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 text-center">
+                    <Package size={48} className="mx-auto text-indigo-400 mb-3" />
+                    <p className="text-indigo-900 font-semibold mb-2">No keg list uploaded</p>
+                    <p className="text-indigo-700 text-sm mb-4">Upload an Excel file with product names in the first column</p>
+                    <button
+                      onClick={() => kegFileInputRef.current?.click()}
+                      className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+                    >
+                      Upload Keg List
+                    </button>
+                  </div>
+                )}
 
                 {editingKeg && (
                   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -740,35 +757,37 @@ export default function StockCounter() {
                   </div>
                 )}
 
-                <div className="border-2 border-slate-200 rounded-xl overflow-hidden">
-                  <div className="max-h-96 overflow-y-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-100 sticky top-0">
-                        <tr>
-                          <th className="text-left px-4 py-3 font-semibold text-slate-700 border-b-2 border-slate-200">Product</th>
-                          <th className="text-right px-4 py-3 font-semibold text-slate-700 border-b-2 border-slate-200 w-24">Count</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {KEG_PRODUCTS.map((product, idx) => {
-                          const count = kegCounts[product] || 0;
-                          return (
-                            <tr
-                              key={idx}
-                              onClick={() => handleKegClick(product)}
-                              className="hover:bg-amber-50 cursor-pointer border-b border-slate-100 transition-colors"
-                            >
-                              <td className="px-4 py-3 text-slate-700">{product}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                                {count > 0 ? count : '-'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                {kegProducts.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="w-full">
+                        <thead className="bg-gradient-to-r from-indigo-50 to-blue-50 sticky top-0">
+                          <tr>
+                            <th className="text-left px-4 py-3 font-semibold text-gray-700 border-b border-gray-200">Product</th>
+                            <th className="text-right px-4 py-3 font-semibold text-gray-700 border-b border-gray-200 w-24">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {kegProducts.map((product, idx) => {
+                            const count = kegCounts[product] || 0;
+                            return (
+                              <tr
+                                key={idx}
+                                onClick={() => handleKegClick(product)}
+                                className="hover:bg-indigo-50 cursor-pointer border-b border-gray-100 transition-colors"
+                              >
+                                <td className="px-4 py-3 text-gray-700 font-medium">{product}</td>
+                                <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                  {count > 0 ? count : <span className="text-gray-400">-</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </>
           )}
