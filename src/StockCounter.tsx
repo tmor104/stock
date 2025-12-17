@@ -177,7 +177,7 @@ export default function StockCounter() {
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
-  const handleSearch = (query) => {
+  const handleSearch = (query: string) => {
     const searchTerm = query || searchQuery;
     if (!searchTerm.trim()) {
       setSearchResults([]);
@@ -190,7 +190,7 @@ export default function StockCounter() {
     setSearchResults(results);
   };
 
-  const selectSearchResult = (product) => {
+  const selectSearchResult = (product: Product) => {
     setCurrentProduct(product);
     setSearchQuery('');
     setSearchResults([]);
@@ -222,7 +222,7 @@ export default function StockCounter() {
     setCurrentMode('scan');
   };
 
-  const handleKegSelection = (product) => {
+  const handleKegSelection = (product: string) => {
     setCurrentProduct({ barcode: 'KEG', product });
     setTimeout(() => quantityInputRef.current?.focus(), 100);
   };
@@ -300,7 +300,7 @@ export default function StockCounter() {
     setCurrentMode('scan');
   };
 
-  const deleteEntry = (index, isManual) => {
+  const deleteEntry = (index: number, isManual: boolean) => {
     if (isManual) {
       setManualEntries(prev => prev.filter((_, i) => i !== index));
     } else {
@@ -308,12 +308,12 @@ export default function StockCounter() {
     }
   };
 
-  const startEdit = (index, quantity, isManual) => {
+  const startEdit = (index: number, quantity: number, isManual: boolean) => {
     setEditingIndex(isManual ? `manual-${index}` : `scanned-${index}`);
     setEditQuantity(quantity.toString());
   };
 
-  const saveEdit = (index, isManual) => {
+  const saveEdit = (index: number, isManual: boolean) => {
     const newQty = parseFloat(editQuantity);
     if (isNaN(newQty) || newQty <= 0) {
       alert('Please enter a valid quantity');
