@@ -36,6 +36,7 @@ export default function StockCounter() {
   const [editingKeg, setEditingKeg] = useState<string | null>(null);
   const [kegInputValue, setKegInputValue] = useState('');
   const [showKegAddReplace, setShowKegAddReplace] = useState(false);
+  const [unknownProductName, setUnknownProductName] = useState('');
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -98,15 +99,16 @@ export default function StockCounter() {
     if (!barcodeInput.trim()) return;
 
     const product = productDatabase.find(p => p.barcode.toString() === barcodeInput.trim());
-    
+
     if (product) {
       setCurrentProduct(product);
       setBarcodeInput('');
+      setUnknownProductName('');
       setTimeout(() => quantityInputRef.current?.focus(), 100);
     } else {
-      setCurrentProduct({ barcode: barcodeInput, product: 'UNKNOWN - Manual Entry Required' });
+      setCurrentProduct({ barcode: barcodeInput, product: '' });
       setBarcodeInput('');
-      setTimeout(() => quantityInputRef.current?.focus(), 100);
+      setUnknownProductName('');
     }
   };
 
@@ -114,20 +116,28 @@ export default function StockCounter() {
     e.preventDefault();
     if (!quantityInput || !currentProduct) return;
 
+    // If product name is empty (unknown barcode), require product name input
+    if (!currentProduct.product && !unknownProductName.trim()) {
+      alert('Please enter a product name for this unknown barcode');
+      return;
+    }
+
     const qty = parseFloat(quantityInput);
     if (isNaN(qty) || qty <= 0) {
       alert('Please enter a valid quantity');
       return;
     }
 
+    const productName = currentProduct.product || unknownProductName.trim();
     const entry = {
       barcode: currentProduct.barcode,
-      product: currentProduct.product,
+      product: productName,
       quantity: qty,
       timestamp: new Date().toLocaleString()
     };
 
-    if (currentProduct.product === 'UNKNOWN - Manual Entry Required') {
+    // Unknown barcodes always go to manual entries
+    if (!currentProduct.product) {
       setManualEntries(prev => [entry, ...prev]);
     } else {
       setScannedItems(prev => [entry, ...prev]);
@@ -136,6 +146,7 @@ export default function StockCounter() {
     setCurrentProduct(null);
     setQuantityInput('');
     setBarcodeInput('');
+    setUnknownProductName('');
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -360,14 +371,29 @@ export default function StockCounter() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-8 mb-6 border border-gray-200">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 rounded-lg shadow-md">
-              <Package size={32} className="text-white" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 rounded-lg shadow-md">
+                <Package size={32} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Stock Wizard</h1>
+                <p className="text-sm text-gray-600">DIY Stock Management</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Stock Wizard</h1>
-              <p className="text-sm text-gray-600">Professional Inventory Management</p>
-            </div>
+            {currentMode !== 'scan' && (
+              <button
+                onClick={() => {
+                  setCurrentMode('scan');
+                  setCurrentProduct(null);
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all shadow-sm font-medium flex items-center gap-2"
+              >
+                <ArrowLeft size={18} /> Back to Scan
+              </button>
+            )}
           </div>
 
           {productDatabase.length === 0 && (
@@ -793,14 +819,36 @@ export default function StockCounter() {
           )}
 
           {currentProduct && currentMode === 'scan' && (
-            <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200 shadow-sm">
               <div className="mb-4">
-                <div className="text-lg font-semibold text-slate-800">{currentProduct.product}</div>
-                <div className="text-sm text-slate-500">{currentProduct.barcode}</div>
+                {currentProduct.product ? (
+                  <>
+                    <div className="text-lg font-bold text-gray-900">{currentProduct.product}</div>
+                    <div className="text-sm text-gray-600 font-medium">Barcode: {currentProduct.barcode}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-semibold">
+                        Unknown Barcode
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-600 font-medium mb-3">Barcode: {currentProduct.barcode}</div>
+                    <label className="block text-gray-700 font-semibold mb-2">Product Name</label>
+                    <input
+                      type="text"
+                      value={unknownProductName}
+                      onChange={(e) => setUnknownProductName(e.target.value)}
+                      placeholder="Enter product name..."
+                      className="w-full px-4 py-3 text-lg border-2 border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 mb-3 transition-all bg-white"
+                      autoFocus
+                    />
+                  </>
+                )}
               </div>
-              
+
               <div>
-                <label className="block text-slate-700 mb-2">Enter Quantity</label>
+                <label className="block text-gray-700 font-semibold mb-2">Quantity</label>
                 <input
                   ref={quantityInputRef}
                   type="number"
@@ -814,12 +862,12 @@ export default function StockCounter() {
                     }
                   }}
                   placeholder="Enter quantity..."
-                  className="w-full px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 mb-3 transition-all"
+                  className="w-full px-4 py-3 text-xl border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-3 transition-all"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={handleQuantitySubmit}
-                    className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 font-semibold transition-colors"
+                    className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 font-semibold transition-all shadow-sm"
                   >
                     Confirm
                   </button>
@@ -827,8 +875,9 @@ export default function StockCounter() {
                     onClick={() => {
                       setCurrentProduct(null);
                       setQuantityInput('');
+                      setUnknownProductName('');
                     }}
-                    className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                    className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 font-semibold transition-all"
                   >
                     Cancel
                   </button>
