@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft, Plus } from 'lucide-react';
+import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Product {
