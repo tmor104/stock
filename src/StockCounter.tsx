@@ -261,8 +261,8 @@ export default function StockCounter() {
   const [syncStatus, setSyncStatus] = useState('');
 
   // Refs
-  const barcodeInputRef = useRef(null);
-  const quantityInputRef = useRef(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // ============================================
   // INITIALIZATION
@@ -471,7 +471,7 @@ export default function StockCounter() {
   // ============================================
   // SCANNING
   // ============================================
-  const handleBarcodeSubmit = (e) => {
+  const handleBarcodeSubmit = (e: any) => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
@@ -493,7 +493,7 @@ export default function StockCounter() {
     }
   };
 
-  const handleQuantitySubmit = async (e) => {
+  const handleQuantitySubmit = async (e: any) => {
     e.preventDefault();
     if (!quantityInput || !currentProduct) return;
 
@@ -586,7 +586,7 @@ export default function StockCounter() {
     }
   };
 
-  const handleChangeLocation = async (newLocation) => {
+  const handleChangeLocation = async (newLocation: string) => {
     setCurrentLocation(newLocation);
     await dbService.saveState('currentLocation', newLocation);
   };
@@ -594,7 +594,7 @@ export default function StockCounter() {
   // ============================================
   // SEARCH
   // ============================================
-  const handleSearch = (query) => {
+  const handleSearch = (query: string) => {
     const searchTerm = query || searchQuery;
     if (!searchTerm.trim()) {
       setSearchResults([]);
@@ -607,7 +607,7 @@ export default function StockCounter() {
     setSearchResults(results);
   };
 
-  const selectSearchResult = (product) => {
+  const selectSearchResult = (product: any) => {
     setCurrentProduct(product);
     setSearchQuery('');
     setSearchResults([]);
@@ -618,12 +618,12 @@ export default function StockCounter() {
   // ============================================
   // UI HELPERS
   // ============================================
-  const getSyncStatusColor = (scan) => {
+  const getSyncStatusColor = (scan: any) => {
     if (scan.synced) return 'bg-green-50 border-green-200';
     return 'bg-yellow-50 border-yellow-300';
   };
 
-  const getSyncStatusIcon = (scan) => {
+  const getSyncStatusIcon = (scan: any) => {
     if (scan.synced) return <CheckCircle size={16} className="text-green-600" />;
     return <Clock size={16} className="text-yellow-600" />;
   };
