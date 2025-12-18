@@ -326,7 +326,11 @@ export default function StockCounter() {
 
       // Load scans from IndexedDB
       const allScans = await dbService.getAllScans();
-      setScannedItems(allScans);
+      // Sort scans by timestamp (most recent first)
+      const sortedScans = [...allScans].sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setScannedItems(sortedScans);
 
       const unsynced = await dbService.getUnsyncedScans();
       setUnsyncedCount(unsynced.length);
@@ -427,7 +431,11 @@ export default function StockCounter() {
         for (const scan of result.scans) {
           await dbService.saveScan(scan);
         }
-        setScannedItems(result.scans);
+        // Sort scans by timestamp (most recent first)
+        const sortedScans = [...result.scans].sort((a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        setScannedItems(sortedScans);
         alert(`Loaded ${result.scans.length} previous scans from this stocktake.`);
       }
 
@@ -435,6 +443,7 @@ export default function StockCounter() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert('Failed to load stocktake: ' + errorMessage);
+      console.error('Error selecting stocktake:', error);
     }
   };
 
@@ -478,7 +487,7 @@ export default function StockCounter() {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    const product = productDatabase.find(p => p.barcode === barcodeInput.trim());
+    const product = productDatabase.find((p: any) => p.barcode === barcodeInput.trim());
 
     if (product) {
       setCurrentProduct(product);
@@ -524,8 +533,8 @@ export default function StockCounter() {
     await dbService.saveScan(scan);
 
     // Update UI
-    setScannedItems(prev => [scan, ...prev]);
-    setUnsyncedCount(prev => prev + 1);
+    setScannedItems((prev: any[]) => [scan, ...prev]);
+    setUnsyncedCount((prev: number) => prev + 1);
 
     // Reset form
     setCurrentProduct(null);
@@ -565,8 +574,8 @@ export default function StockCounter() {
         await dbService.markScansSynced(result.syncedIds);
 
         // Update UI
-        setScannedItems(prev =>
-          prev.map(scan =>
+        setScannedItems((prev: any[]) =>
+          prev.map((scan: any) =>
             result.syncedIds.includes(scan.syncId)
               ? { ...scan, synced: true }
               : scan
@@ -603,7 +612,7 @@ export default function StockCounter() {
       setSearchResults([]);
       return;
     }
-    const results = productDatabase.filter(p =>
+    const results = productDatabase.filter((p: any) =>
       p.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.barcode.toString().includes(searchTerm)
     );
@@ -649,6 +658,7 @@ export default function StockCounter() {
         onCreateStocktake={handleCreateStocktake}
         onSelectStocktake={handleSelectStocktake}
         onLogout={handleLogout}
+        onBack={currentStocktake ? () => setAppMode('scan') : undefined}
         apiService={apiService}
       />
     );
@@ -971,10 +981,11 @@ interface SettingsPageProps {
   onCreateStocktake: (name: string) => Promise<boolean>;
   onSelectStocktake: (stocktake: any) => void;
   onLogout: () => void;
+  onBack?: () => void;
   apiService: GoogleSheetsService;
 }
 
-function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStocktake, onLogout, apiService }: SettingsPageProps) {
+function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStocktake, onLogout, onBack, apiService }: SettingsPageProps) {
   const [mode, setMode] = useState('menu'); // menu, create, select
   const [stocktakeName, setStocktakeName] = useState('');
   const [availableStocktakes, setAvailableStocktakes] = useState<any[]>([]);
@@ -1113,6 +1124,15 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
             <LogOut size={16} /> Logout
           </button>
         </div>
+
+        {currentStocktake && onBack && (
+          <button
+            onClick={onBack}
+            className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
+          >
+            <ArrowLeft size={20} /> Back to Scanning
+          </button>
+        )}
 
         {currentStocktake && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
