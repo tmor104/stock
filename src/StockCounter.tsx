@@ -67,11 +67,14 @@ class IndexedDBService {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
-    const index = store.index('synced');
-    const request = index.getAll(IDBKeyRange.only(false));
+    const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        // Filter for unsynced scans in JavaScript (boolean not valid as IDBKeyRange)
+        const unsynced = request.result.filter((scan: any) => !scan.synced);
+        resolve(unsynced);
+      };
       request.onerror = () => reject(request.error);
     });
   }
