@@ -39,6 +39,13 @@ function doGet(e) {
   return ContentService.createTextOutput('Stock Counter API is running. Use POST requests.');
 }
 
+// Handle OPTIONS requests for CORS preflight
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
 // ============================================
 // AUTHENTICATION
 // ============================================
