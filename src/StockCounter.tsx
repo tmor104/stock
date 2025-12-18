@@ -899,12 +899,16 @@ export default function StockCounter() {
 // ============================================
 // LOGIN PAGE COMPONENT
 // ============================================
-function LoginPage({ onLogin }) {
+interface LoginPageProps {
+  onLogin: (username: string, password: string) => Promise<boolean>;
+}
+
+function LoginPage({ onLogin }: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     await onLogin(username, password);
@@ -958,10 +962,19 @@ function LoginPage({ onLogin }) {
 // ============================================
 // SETTINGS PAGE COMPONENT
 // ============================================
-function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStocktake, onLogout, apiService }) {
+interface SettingsPageProps {
+  user: any;
+  currentStocktake: any;
+  onCreateStocktake: (name: string) => Promise<boolean>;
+  onSelectStocktake: (stocktake: any) => void;
+  onLogout: () => void;
+  apiService: GoogleSheetsService;
+}
+
+function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStocktake, onLogout, apiService }: SettingsPageProps) {
   const [mode, setMode] = useState('menu'); // menu, create, select
   const [stocktakeName, setStocktakeName] = useState('');
-  const [availableStocktakes, setAvailableStocktakes] = useState([]);
+  const [availableStocktakes, setAvailableStocktakes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -985,7 +998,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
     }
   };
 
-  const handleCreate = async (e) => {
+  const handleCreate = async (e: any) => {
     e.preventDefault();
     if (!stocktakeName.trim()) return;
 
@@ -1058,7 +1071,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
               <p className="text-center text-slate-600">No stocktakes found</p>
             ) : (
               <div className="space-y-3">
-                {availableStocktakes.map((stocktake) => (
+                {availableStocktakes.map((stocktake: any) => (
                   <div
                     key={stocktake.id}
                     onClick={() => onSelectStocktake(stocktake)}
