@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Counter API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px 5px; cursor: pointer; background: #1a73e8; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #1557b0; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>📦 Stock Counter API Tester</h1>
+
+    <div>
+        <h2>Step 1: Test GET Request</h2>
+        <p>This should return: "Stock Counter API is running. Use POST requests."</p>
+        <button onclick="testGet()">Test GET</button>
+        <pre id="getResult">Click button to test...</pre>
+    </div>
+
+    <div>
+        <h2>Step 2: Test Authentication</h2>
+        <input type="text" id="username" placeholder="Username" value="test">
+        <input type="password" id="password" placeholder="Password" value="test123">
+        <button onclick="testAuth()">Test Login</button>
+        <pre id="authResult">Enter credentials and click test...</pre>
+    </div>
+
+    <div>
+        <h2>Step 3: Test Product Database</h2>
+        <button onclick="testProducts()">Get Products</button>
+        <pre id="productsResult">Click button to test...</pre>
+    </div>
+
+    <div>
+        <h2>Step 4: Test Locations</h2>
+        <button onclick="testLocations()">Get Locations</button>
+        <pre id="locationsResult">Click button to test...</pre>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbx6yH0XWvbsDlYvhf1OaozoQhGAvlRIFPlN9oV9dr-3P5gPZpb29yl9coSOkvzEYqD04w/exec';
+
+        async function testGet() {
+            const result = document.getElementById('getResult');
+            result.textContent = 'Testing...';
+
+            try {
+                const response = await fetch(API_URL);
+                const text = await response.text();
+                result.className = 'success';
+                result.textContent = '✅ SUCCESS:\n' + text;
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR:\n' + error.message + '\n\nThis usually means:\n1. Apps Script is not deployed\n2. Wrong URL\n3. CORS issue';
+            }
+        }
+
+        async function testAuth() {
+            const result = document.getElementById('authResult');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            result.textContent = 'Testing authentication...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'authenticate',
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                result.className = data.success ? 'success' : 'error';
+                result.textContent = (data.success ? '✅ SUCCESS' : '❌ FAILED') + ':\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR:\n' + error.message;
+            }
+        }
+
+        async function testProducts() {
+            const result = document.getElementById('productsResult');
+            result.textContent = 'Fetching products...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'getProductDatabase' })
+                });
+
+                const data = await response.json();
+                result.className = data.success ? 'success' : 'error';
+                result.textContent = (data.success ? '✅ SUCCESS' : '❌ FAILED') + ':\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR:\n' + error.message;
+            }
+        }
+
+        async function testLocations() {
+            const result = document.getElementById('locationsResult');
+            result.textContent = 'Fetching locations...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'getLocations' })
+                });
+
+                const data = await response.json();
+                result.className = data.success ? 'success' : 'error';
+                result.textContent = (data.success ? '✅ SUCCESS' : '❌ FAILED') + ':\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = '❌ ERROR:\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
