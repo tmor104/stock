@@ -182,11 +182,11 @@ class IndexedDBService {
 class GoogleSheetsService {
   async callAPI(action: string, data: Record<string, any> = {}) {
     try {
+      // Use simple POST without custom headers to avoid CORS preflight
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...data }),
-        mode: 'cors'
+        body: JSON.stringify({ action, ...data })
+        // No Content-Type or mode = "simple request" = no preflight!
       });
 
       const result = await response.json();
