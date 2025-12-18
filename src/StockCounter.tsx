@@ -63,7 +63,7 @@ class IndexedDBService {
     await store.put(scan);
   }
 
-  async getUnsyncedScans() {
+  async getUnsyncedScans(): Promise<any[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
@@ -76,7 +76,7 @@ class IndexedDBService {
     });
   }
 
-  async getAllScans() {
+  async getAllScans(): Promise<any[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
@@ -119,7 +119,7 @@ class IndexedDBService {
     await store.put({ key, value });
   }
 
-  async getState(key: string) {
+  async getState(key: string): Promise<any> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readonly');
     const store = tx.objectStore('appState');
@@ -141,7 +141,7 @@ class IndexedDBService {
     }
   }
 
-  async getProducts() {
+  async getProducts(): Promise<any[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['products'], 'readonly');
     const store = tx.objectStore('products');
@@ -163,7 +163,7 @@ class IndexedDBService {
     }
   }
 
-  async getLocations() {
+  async getLocations(): Promise<string[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['locations'], 'readonly');
     const store = tx.objectStore('locations');
@@ -302,7 +302,8 @@ export default function StockCounter() {
       }
     } catch (error) {
       console.error('Initialization error:', error);
-      alert('Failed to initialize app: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to initialize app: ' + errorMessage);
     }
   };
 
@@ -354,7 +355,8 @@ export default function StockCounter() {
         return false;
       }
     } catch (error) {
-      alert('Login failed: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Login failed: ' + errorMessage);
       return false;
     }
   };
@@ -400,7 +402,8 @@ export default function StockCounter() {
         return false;
       }
     } catch (error) {
-      alert('Failed to create stocktake: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to create stocktake: ' + errorMessage);
       return false;
     }
   };
@@ -427,7 +430,8 @@ export default function StockCounter() {
 
       setAppMode('scan');
     } catch (error) {
-      alert('Failed to load stocktake: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to load stocktake: ' + errorMessage);
     }
   };
 
@@ -974,7 +978,8 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
         setAvailableStocktakes(result.stocktakes);
       }
     } catch (error) {
-      alert('Failed to load stocktakes: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to load stocktakes: ' + errorMessage);
     } finally {
       setLoading(false);
     }
