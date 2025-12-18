@@ -237,23 +237,23 @@ export default function StockCounter() {
 
   // App State
   const [appMode, setAppMode] = useState('login'); // login, settings, scan
-  const [user, setUser] = useState(null);
-  const [currentStocktake, setCurrentStocktake] = useState(null);
+  const [user, setUser] = useState<any>(null);
+  const [currentStocktake, setCurrentStocktake] = useState<any>(null);
   const [currentLocation, setCurrentLocation] = useState('');
 
   // Data
-  const [productDatabase, setProductDatabase] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [scannedItems, setScannedItems] = useState([]);
+  const [productDatabase, setProductDatabase] = useState<any[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [scannedItems, setScannedItems] = useState<any[]>([]);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
 
   // Scan Mode
   const [currentMode, setCurrentMode] = useState('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
-  const [currentProduct, setCurrentProduct] = useState(null);
+  const [currentProduct, setCurrentProduct] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   // UI State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -340,7 +340,7 @@ export default function StockCounter() {
   // ============================================
   // AUTHENTICATION
   // ============================================
-  const handleLogin = async (username, password) => {
+  const handleLogin = async (username: string, password: string) => {
     try {
       const result = await apiService.authenticate(username, password);
 
@@ -381,9 +381,9 @@ export default function StockCounter() {
   // ============================================
   // STOCKTAKE MANAGEMENT
   // ============================================
-  const handleCreateStocktake = async (name) => {
+  const handleCreateStocktake = async (name: string) => {
     try {
-      const result = await apiService.createStocktake(name, user.username);
+      const result = await apiService.createStocktake(name, user?.username);
 
       if (result.success) {
         const stocktake = {
@@ -408,7 +408,7 @@ export default function StockCounter() {
     }
   };
 
-  const handleSelectStocktake = async (stocktake) => {
+  const handleSelectStocktake = async (stocktake: any) => {
     try {
       setCurrentStocktake(stocktake);
       await dbService.saveState('currentStocktake', stocktake);
