@@ -33,14 +33,38 @@ A comprehensive stock-taking application with offline support, Google Sheets syn
 - Google account
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 - Barcode scanner (optional - can type barcodes manually)
+- Node.js (for development)
 
 ### Setup Steps
 
 1. **Follow the Setup Guide** - See [SETUP_GUIDE.md](./SETUP_GUIDE.md) for detailed instructions
 2. **Create Master Sheet** - Set up Product Database, Users, and Locations
 3. **Deploy Apps Script** - Copy code from [AppsScript.gs](./AppsScript.gs)
-4. **Configure React App** - Update `APPS_SCRIPT_URL` in the code
+4. **Configure React App** - Update `APPS_SCRIPT_URL` in `src/StockCounter.tsx`
 5. **Start Scanning!** - Login and create your first stocktake
+
+### Development
+
+Install dependencies:
+```bash
+npm install
+```
+
+Run development server:
+```bash
+npm run dev
+```
+
+Build for production:
+```bash
+npm run build
+```
+
+### GitHub Pages Deployment
+
+This project automatically deploys to GitHub Pages when you push to the branch.
+
+**Live URL:** https://tmor104.github.io/stock/
 
 ## 📋 Sheet Structures
 
