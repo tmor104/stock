@@ -180,7 +180,7 @@ class IndexedDBService {
 // GOOGLE SHEETS API SERVICE
 // ============================================
 class GoogleSheetsService {
-  async callAPI(action, data = {}) {
+  async callAPI(action: string, data: Record<string, any> = {}) {
     try {
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -193,11 +193,12 @@ class GoogleSheetsService {
       return result;
     } catch (error) {
       console.error('API Error:', error);
-      throw new Error('Network error: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error('Network error: ' + errorMessage);
     }
   }
 
-  async authenticate(username, password) {
+  async authenticate(username: string, password: string) {
     return this.callAPI('authenticate', { username, password });
   }
 
@@ -209,7 +210,7 @@ class GoogleSheetsService {
     return this.callAPI('getLocations');
   }
 
-  async createStocktake(name, user) {
+  async createStocktake(name: string, user: string) {
     return this.callAPI('createStocktake', { name, user });
   }
 
@@ -217,11 +218,11 @@ class GoogleSheetsService {
     return this.callAPI('listStocktakes');
   }
 
-  async syncScans(stocktakeId, scans) {
+  async syncScans(stocktakeId: string, scans: any[]) {
     return this.callAPI('syncScans', { stocktakeId, scans });
   }
 
-  async loadUserScans(stocktakeId, username) {
+  async loadUserScans(stocktakeId: string, username: string) {
     return this.callAPI('loadUserScans', { stocktakeId, username });
   }
 }
