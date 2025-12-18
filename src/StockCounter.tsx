@@ -56,17 +56,19 @@ class IndexedDBService {
     });
   }
 
-  async saveScan(scan) {
+  async saveScan(scan: any) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readwrite');
     const store = tx.objectStore('scans');
     await store.put(scan);
   }
 
   async getUnsyncedScans() {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
     const index = store.index('synced');
-    const request = index.getAll(false);
+    const request = index.getAll(IDBKeyRange.only(false));
 
     return new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result);
@@ -75,6 +77,7 @@ class IndexedDBService {
   }
 
   async getAllScans() {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
     const request = store.getAll();
@@ -85,12 +88,16 @@ class IndexedDBService {
     });
   }
 
-  async markScansSynced(syncIds) {
+  async markScansSynced(syncIds: string[]) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readwrite');
     const store = tx.objectStore('scans');
 
     for (const syncId of syncIds) {
-      const scan = await store.get(syncId);
+      const request = store.get(syncId);
+      const scan: any = await new Promise((resolve) => {
+        request.onsuccess = () => resolve(request.result);
+      });
       if (scan) {
         scan.synced = true;
         await store.put(scan);
@@ -99,18 +106,21 @@ class IndexedDBService {
   }
 
   async clearScans() {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readwrite');
     const store = tx.objectStore('scans');
     await store.clear();
   }
 
-  async saveState(key, value) {
+  async saveState(key: string, value: any) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readwrite');
     const store = tx.objectStore('appState');
     await store.put({ key, value });
   }
 
-  async getState(key) {
+  async getState(key: string) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readonly');
     const store = tx.objectStore('appState');
     const request = store.get(key);
@@ -121,7 +131,8 @@ class IndexedDBService {
     });
   }
 
-  async saveProducts(products) {
+  async saveProducts(products: any[]) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['products'], 'readwrite');
     const store = tx.objectStore('products');
     await store.clear();
@@ -131,6 +142,7 @@ class IndexedDBService {
   }
 
   async getProducts() {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['products'], 'readonly');
     const store = tx.objectStore('products');
     const request = store.getAll();
@@ -141,7 +153,8 @@ class IndexedDBService {
     });
   }
 
-  async saveLocations(locations) {
+  async saveLocations(locations: string[]) {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['locations'], 'readwrite');
     const store = tx.objectStore('locations');
     await store.clear();
@@ -151,12 +164,13 @@ class IndexedDBService {
   }
 
   async getLocations() {
+    if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['locations'], 'readonly');
     const store = tx.objectStore('locations');
     const request = store.getAll();
 
     return new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result.map(l => l.name));
+      request.onsuccess = () => resolve(request.result.map((l: any) => l.name));
       request.onerror = () => reject(request.error);
     });
   }
