@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Search, Package, Scan, Download, Edit2, Trash2, X, ArrowLeft, Settings, LogOut, MapPin, RefreshCw, WifiOff, CheckCircle, Clock } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, Package, Scan, ArrowLeft, Settings, LogOut, RefreshCw, WifiOff, CheckCircle, Clock } from 'lucide-react';
 
 // ============================================
 // CONFIGURATION
 // ============================================
-const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE'; // Update this after deployment
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6yH0XWvbsDlYvhf1OaozoQhGAvlRIFPlN9oV9dr-3P5gPZpb29yl9coSOkvzEYqD04w/exec';
 const SYNC_INTERVAL = 10; // Sync every 10 scans
 
 // ============================================
@@ -14,7 +14,7 @@ const DB_NAME = 'StockCounterDB';
 const DB_VERSION = 1;
 
 class IndexedDBService {
-  db = null;
+  db: IDBDatabase | null = null;
 
   async init() {
     return new Promise((resolve, reject) => {
@@ -26,8 +26,9 @@ class IndexedDBService {
         resolve(this.db);
       };
 
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const target = event.target as IDBOpenDBRequest;
+        const db = target.result;
 
         // Store for scans
         if (!db.objectStoreNames.contains('scans')) {
