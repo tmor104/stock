@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Package, Scan, ArrowLeft, Settings, LogOut, RefreshCw, WifiOff, CheckCircle, Clock } from 'lucide-react';
+import { Search, Package, Scan, ArrowLeft, Settings, LogOut, RefreshCw, WifiOff, CheckCircle, Clock, Edit2, Trash2 } from 'lucide-react';
 
 // ============================================
 // CONFIGURATION
@@ -262,6 +262,8 @@ export default function StockCounter() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+  const [editingScan, setEditingScan] = useState<any>(null);
+  const [editQuantity, setEditQuantity] = useState('');
 
   // Refs
   const barcodeInputRef = useRef<HTMLInputElement>(null);
@@ -546,6 +548,78 @@ export default function StockCounter() {
     if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
       await syncToGoogleSheets();
     }
+  };
+
+  // ============================================
+  // EDIT SCANS
+  // ============================================
+  const handleEditScan = (scan: any) => {
+    setEditingScan(scan);
+    setEditQuantity(scan.quantity.toString());
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingScan || !editQuantity) return;
+
+    const qty = parseFloat(editQuantity);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+
+    // Update the scan with new quantity
+    const updatedScan = {
+      ...editingScan,
+      quantity: qty,
+      synced: false, // Mark as unsynced so it gets re-synced
+      lastModified: new Date().toISOString()
+    };
+
+    // Update in IndexedDB
+    await dbService.saveScan(updatedScan);
+
+    // Update UI
+    setScannedItems((prev: any[]) =>
+      prev.map((scan: any) =>
+        scan.syncId === updatedScan.syncId ? updatedScan : scan
+      )
+    );
+
+    // Update unsynced count
+    const unsynced = await dbService.getUnsyncedScans();
+    setUnsyncedCount(unsynced.length);
+
+    // Clear edit state
+    setEditingScan(null);
+    setEditQuantity('');
+
+    // Auto-sync if online
+    if (isOnline) {
+      await syncToGoogleSheets();
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingScan(null);
+    setEditQuantity('');
+  };
+
+  const handleDeleteScan = async (scan: any) => {
+    if (!confirm(`Delete scan for ${scan.product}?`)) return;
+
+    // Delete from IndexedDB
+    if (dbService.db) {
+      const tx = dbService.db.transaction(['scans'], 'readwrite');
+      const store = tx.objectStore('scans');
+      await store.delete(scan.syncId);
+    }
+
+    // Update UI
+    setScannedItems((prev: any[]) => prev.filter((s: any) => s.syncId !== scan.syncId));
+
+    // Update unsynced count
+    const unsynced = await dbService.getUnsyncedScans();
+    setUnsyncedCount(unsynced.length);
   };
 
   // ============================================
@@ -870,6 +944,48 @@ export default function StockCounter() {
           </div>
         )}
 
+        {/* Edit Scan Modal */}
+        {editingScan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Scan</h3>
+
+              <div className="mb-4">
+                <div className="text-lg font-semibold text-slate-800">{editingScan.product}</div>
+                <div className="text-sm text-slate-500">Barcode: {editingScan.barcode}</div>
+                <div className="text-sm text-slate-600">Location: {editingScan.location}</div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-slate-700 font-medium mb-2">Quantity</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editQuantity}
+                  onChange={(e) => setEditQuantity(e.target.value)}
+                  className="w-full px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold transition-colors"
+                >
+                  Save Changes
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Scanned Items List */}
         {scannedItems.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
@@ -898,6 +1014,20 @@ export default function StockCounter() {
                   </div>
                   <div className="flex items-center gap-2">
                     {getSyncStatusIcon(item)}
+                    <button
+                      onClick={() => handleEditScan(item)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit scan"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteScan(item)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete scan"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
               ))}

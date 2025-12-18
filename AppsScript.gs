@@ -220,29 +220,63 @@ function handleSyncScans(request) {
   const rawScansSheet = ss.getSheetByName('Raw Scans');
   const tallySheet = ss.getSheetByName('Tally');
 
-  // Append scans to Raw Scans sheet
-  const rowsToAdd = scans.map(scan => [
-    scan.barcode,
-    scan.product,
-    scan.quantity,
-    scan.location,
-    scan.user,
-    scan.timestamp,
-    scan.stockLevel || '',
-    scan.value || '',
-    'Yes',
-    scan.syncId
-  ]);
-
+  // Get all existing scan IDs to check for updates
   const lastRow = rawScansSheet.getLastRow();
-  rawScansSheet.getRange(lastRow + 1, 1, rowsToAdd.length, 10).setValues(rowsToAdd);
+  const existingScanIds = {};
+
+  if (lastRow > 1) {
+    const existingData = rawScansSheet.getRange('J2:J' + lastRow).getValues(); // Column J is syncId
+    existingData.forEach((row, index) => {
+      if (row[0]) {
+        existingScanIds[row[0]] = index + 2; // +2 because index is 0-based and we start at row 2
+      }
+    });
+  }
+
+  const scansToAdd = [];
+  const syncedIds = [];
+
+  // Process each scan - either update existing or prepare to add new
+  scans.forEach(scan => {
+    const scanRow = [
+      scan.barcode,
+      scan.product,
+      scan.quantity,
+      scan.location,
+      scan.user,
+      scan.timestamp,
+      scan.stockLevel || '',
+      scan.value || '',
+      'Yes',
+      scan.syncId
+    ];
+
+    if (existingScanIds[scan.syncId]) {
+      // Update existing scan
+      const rowIndex = existingScanIds[scan.syncId];
+      rawScansSheet.getRange(rowIndex, 1, 1, 10).setValues([scanRow]);
+    } else {
+      // Add to list of new scans to append
+      scansToAdd.push(scanRow);
+    }
+
+    syncedIds.push(scan.syncId);
+  });
+
+  // Append new scans if any
+  if (scansToAdd.length > 0) {
+    const newLastRow = rawScansSheet.getLastRow();
+    rawScansSheet.getRange(newLastRow + 1, 1, scansToAdd.length, 10).setValues(scansToAdd);
+  }
 
   // Update Tally sheet
   updateTally(tallySheet, rawScansSheet);
 
   return createResponse(true, 'Scans synced successfully', {
     syncedCount: scans.length,
-    syncedIds: scans.map(s => s.syncId)
+    syncedIds: syncedIds,
+    newScans: scansToAdd.length,
+    updatedScans: scans.length - scansToAdd.length
   });
 }
 
