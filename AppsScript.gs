@@ -2,7 +2,7 @@
 // This script provides API endpoints for the React stock counter app
 
 // CONFIGURATION - Update this with your Master Sheet ID
-const MASTER_SHEET_ID = 'https://docs.google.com/spreadsheets/d/1e3rsYW4RoEpxpH8ZMckLP7VdtnpbbfQpd8N_NB9fRgM/edit?gid=1249132617#gid=1249132617'; // Get this from the Google Sheet URL
+const MASTER_SHEET_ID = '1e3rsYW4RoEpxpH8ZMckLP7VdtnpbbfQpd8N_NB9fRgM'; // Master Sheet ID
 
 // Main entry point for HTTP requests
 function doPost(e) {
