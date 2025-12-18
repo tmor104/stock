@@ -774,28 +774,28 @@ export default function StockCounter() {
   // RENDER: SCAN MODE
   // ============================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
+        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-6 mb-6 border border-blue-300">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-800">📦 Stock Wizard</h1>
-              <p className="text-sm text-slate-600">
+              <h1 className="text-3xl font-bold text-white drop-shadow-lg">📦 Stock Wizard</h1>
+              <p className="text-sm text-blue-100">
                 {user.username} • {currentStocktake?.name}
               </p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setAppMode('settings')}
-                className="bg-slate-600 text-white p-2 rounded-lg hover:bg-slate-700 transition-colors"
+                className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-lg hover:bg-white/30 transition-all shadow-lg"
                 title="Settings"
               >
                 <Settings size={20} />
               </button>
               <button
                 onClick={handleLogout}
-                className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
+                className="bg-red-500/80 backdrop-blur-sm text-white p-2 rounded-lg hover:bg-red-600 transition-all shadow-lg"
                 title="Logout"
               >
                 <LogOut size={20} />
@@ -805,34 +805,34 @@ export default function StockCounter() {
 
           {/* Scan Type Selector */}
           <div className="mb-4">
-            <label className="text-sm font-medium text-slate-700 mb-2 block">Scan Type</label>
+            <label className="text-sm font-medium text-white mb-2 block">Scan Type</label>
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setScanType('regular')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
                   scanType === 'regular'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-white text-blue-600 shadow-lg'
+                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
                 📦 Regular
               </button>
               <button
                 onClick={() => setScanType('manual')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
                   scanType === 'manual'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-white text-purple-600 shadow-lg'
+                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
                 ✍️ Manual
               </button>
               <button
                 onClick={() => setScanType('kegs')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
                   scanType === 'kegs'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? 'bg-white text-orange-600 shadow-lg'
+                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
                 🍺 Kegs
@@ -843,21 +843,21 @@ export default function StockCounter() {
           {/* Location & Sync Status */}
           <div className="flex gap-4 items-center">
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-1 block">Current Location</label>
+              <label className="text-sm font-medium text-white mb-1 block">Current Location</label>
               <select
                 value={currentLocation}
                 onChange={(e) => handleChangeLocation(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                className="w-full px-3 py-2 bg-white/20 backdrop-blur-sm border-2 border-white/30 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 {locations.map(loc => (
-                  <option key={loc} value={loc}>{loc}</option>
+                  <option key={loc} value={loc} className="text-slate-800">{loc}</option>
                 ))}
               </select>
             </div>
 
             <div className="flex items-center gap-3">
               {!isOnline && (
-                <div className="flex items-center gap-1 text-orange-600">
+                <div className="flex items-center gap-1 text-orange-300">
                   <WifiOff size={18} />
                   <span className="text-sm font-medium">Offline</span>
                 </div>
@@ -865,13 +865,13 @@ export default function StockCounter() {
 
               {unsyncedCount > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-yellow-700">
+                  <span className="text-sm font-medium text-yellow-200">
                     {unsyncedCount} unsynced
                   </span>
                   <button
                     onClick={syncToGoogleSheets}
                     disabled={!isOnline || isSyncing}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors flex items-center gap-1"
+                    className="bg-white/90 text-blue-600 px-3 py-2 rounded-lg hover:bg-white disabled:bg-white/30 transition-all shadow-lg font-semibold flex items-center gap-1"
                   >
                     <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
                     Sync
@@ -880,7 +880,7 @@ export default function StockCounter() {
               )}
 
               {syncStatus && (
-                <span className="text-sm font-medium text-green-600">{syncStatus}</span>
+                <span className="text-sm font-medium text-green-200">{syncStatus}</span>
               )}
             </div>
           </div>
@@ -911,14 +911,14 @@ export default function StockCounter() {
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={() => setCurrentMode('search')}
-                className="bg-slate-100 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
+                className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-3 py-2 rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
               >
                 <Search size={16} /> Search Product
               </button>
               <button
                 onClick={syncToGoogleSheets}
                 disabled={!isOnline || isSyncing || unsyncedCount === 0}
-                className="bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 transition-colors flex items-center justify-center gap-1.5 text-sm font-medium"
+                className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-2 rounded-lg hover:from-emerald-600 hover:to-green-700 disabled:bg-slate-300 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
               >
                 <RefreshCw size={16} /> Manual Sync
               </button>
@@ -955,7 +955,7 @@ export default function StockCounter() {
 
               {/* Box Counter Quick Options */}
               <div className="mb-3">
-                <label className="block text-xs text-slate-600 mb-2">Quick Add (Boxes):</label>
+                <label className="block text-xs text-slate-600 mb-2 font-semibold">Quick Add (Boxes):</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[5, 12, 24, 30].map(amount => (
                     <button
@@ -964,7 +964,7 @@ export default function StockCounter() {
                         const current = parseFloat(quantityInput) || 0;
                         setQuantityInput((current + amount).toString());
                       }}
-                      className="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 font-semibold transition-colors text-sm"
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-md transform hover:scale-105 text-sm"
                     >
                       +{amount}
                     </button>
@@ -975,7 +975,7 @@ export default function StockCounter() {
               <div className="flex gap-2">
                 <button
                   onClick={handleQuantitySubmit}
-                  className="flex-1 bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 font-semibold transition-colors"
+                  className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-3 rounded-lg hover:from-emerald-600 hover:to-green-700 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Confirm
                 </button>
@@ -984,7 +984,7 @@ export default function StockCounter() {
                     setCurrentProduct(null);
                     setQuantityInput('');
                   }}
-                  className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                  className="bg-gradient-to-r from-slate-400 to-slate-500 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Cancel
                 </button>
@@ -1060,13 +1060,13 @@ export default function StockCounter() {
               <div className="flex gap-3">
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold transition-colors"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Save Changes
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="bg-slate-200 text-slate-700 px-6 py-3 rounded-lg hover:bg-slate-300 font-semibold transition-colors"
+                  className="bg-gradient-to-r from-slate-400 to-slate-500 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Cancel
                 </button>
@@ -1223,31 +1223,31 @@ function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <h1 className="text-4xl font-bold text-slate-800 mb-2">📦 Stock Wizard</h1>
-        <p className="text-slate-600 mb-8">Sign in to start counting</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform hover:scale-105 transition-transform">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-700 bg-clip-text text-transparent mb-2">📦 Stock Wizard</h1>
+        <p className="text-slate-600 mb-8 font-medium">Sign in to start counting</p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-slate-700 font-medium mb-2">Username</label>
+            <label className="block text-slate-700 font-semibold mb-2">Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+              className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Enter your username"
               required
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-slate-700 font-medium mb-2">Password</label>
+            <label className="block text-slate-700 font-semibold mb-2">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+              className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
               placeholder="Enter your password"
               required
             />
@@ -1256,7 +1256,7 @@ function LoginPage({ onLogin }: LoginPageProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-slate-800 text-white py-3 rounded-lg hover:bg-slate-700 font-semibold transition-colors disabled:bg-slate-400"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-700 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-800 font-bold transition-all shadow-lg transform hover:scale-105 disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
@@ -1438,14 +1438,14 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
         <div className="space-y-3">
           <button
             onClick={() => setMode('create')}
-            className="w-full bg-emerald-600 text-white py-4 rounded-lg hover:bg-emerald-700 font-semibold transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 rounded-lg hover:from-emerald-600 hover:to-green-700 font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:scale-105"
           >
             <Package size={20} /> Start New Stocktake
           </button>
 
           <button
             onClick={() => setMode('select')}
-            className="w-full bg-slate-600 text-white py-4 rounded-lg hover:bg-slate-700 font-semibold transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:scale-105"
           >
             <Search size={20} /> Continue Existing Stocktake
           </button>
