@@ -251,12 +251,15 @@ export default function StockCounter() {
   const [unsyncedCount, setUnsyncedCount] = useState(0);
 
   // Scan Mode
+  const [scanType, setScanType] = useState('regular'); // regular, manual, kegs
   const [currentMode, setCurrentMode] = useState('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
   const [currentProduct, setCurrentProduct] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [manualCounts, setManualCounts] = useState<any[]>([]);
+  const [kegCounts, setKegCounts] = useState<any[]>([]);
 
   // UI State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -517,37 +520,66 @@ export default function StockCounter() {
       return;
     }
 
-    // Create scan entry
-    const scan = {
-      syncId: `${Date.now()}-${Math.random()}`,
-      barcode: currentProduct.barcode,
-      product: currentProduct.product,
-      quantity: qty,
-      location: currentLocation,
-      user: user.username,
-      timestamp: new Date().toISOString(),
-      stockLevel: currentProduct.currentStock || 0,
-      value: currentProduct.value || 0,
-      synced: false
-    };
+    if (scanType === 'manual') {
+      // Manual count - store separately, don't sync
+      const manualCount = {
+        id: `manual-${Date.now()}-${Math.random()}`,
+        barcode: currentProduct.barcode,
+        product: currentProduct.product,
+        quantity: qty,
+        location: currentLocation,
+        user: user.username,
+        timestamp: new Date().toISOString(),
+        type: 'manual'
+      };
+      setManualCounts((prev: any[]) => [manualCount, ...prev]);
+    } else if (scanType === 'kegs') {
+      // Keg count - store separately, sync to kegs sheet
+      const kegCount = {
+        id: `keg-${Date.now()}-${Math.random()}`,
+        barcode: currentProduct.barcode,
+        product: currentProduct.product,
+        quantity: qty,
+        location: currentLocation,
+        user: user.username,
+        timestamp: new Date().toISOString(),
+        type: 'keg',
+        synced: false
+      };
+      setKegCounts((prev: any[]) => [kegCount, ...prev]);
+    } else {
+      // Regular scan
+      const scan = {
+        syncId: `${Date.now()}-${Math.random()}`,
+        barcode: currentProduct.barcode,
+        product: currentProduct.product,
+        quantity: qty,
+        location: currentLocation,
+        user: user.username,
+        timestamp: new Date().toISOString(),
+        stockLevel: currentProduct.currentStock || 0,
+        value: currentProduct.value || 0,
+        synced: false
+      };
 
-    // Save to IndexedDB
-    await dbService.saveScan(scan);
+      // Save to IndexedDB
+      await dbService.saveScan(scan);
 
-    // Update UI
-    setScannedItems((prev: any[]) => [scan, ...prev]);
-    setUnsyncedCount((prev: number) => prev + 1);
+      // Update UI
+      setScannedItems((prev: any[]) => [scan, ...prev]);
+      setUnsyncedCount((prev: number) => prev + 1);
+
+      // Auto-sync every 10 scans
+      if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
+        await syncToGoogleSheets();
+      }
+    }
 
     // Reset form
     setCurrentProduct(null);
     setQuantityInput('');
     setBarcodeInput('');
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
-
-    // Auto-sync every 10 scans
-    if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
-      await syncToGoogleSheets();
-    }
   };
 
   // ============================================
@@ -771,6 +803,43 @@ export default function StockCounter() {
             </div>
           </div>
 
+          {/* Scan Type Selector */}
+          <div className="mb-4">
+            <label className="text-sm font-medium text-slate-700 mb-2 block">Scan Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => setScanType('regular')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  scanType === 'regular'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                📦 Regular
+              </button>
+              <button
+                onClick={() => setScanType('manual')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  scanType === 'manual'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                ✍️ Manual
+              </button>
+              <button
+                onClick={() => setScanType('kegs')}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                  scanType === 'kegs'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                🍺 Kegs
+              </button>
+            </div>
+          </div>
+
           {/* Location & Sync Status */}
           <div className="flex gap-4 items-center">
             <div className="flex-1">
@@ -883,6 +952,26 @@ export default function StockCounter() {
                 placeholder="Enter quantity..."
                 className="w-full px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 mb-3 transition-all"
               />
+
+              {/* Box Counter Quick Options */}
+              <div className="mb-3">
+                <label className="block text-xs text-slate-600 mb-2">Quick Add (Boxes):</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[5, 12, 24, 30].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => {
+                        const current = parseFloat(quantityInput) || 0;
+                        setQuantityInput((current + amount).toString());
+                      }}
+                      className="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-200 font-semibold transition-colors text-sm"
+                    >
+                      +{amount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <button
                   onClick={handleQuantitySubmit}
@@ -986,11 +1075,11 @@ export default function StockCounter() {
           </div>
         )}
 
-        {/* Scanned Items List */}
-        {scannedItems.length > 0 && (
+        {/* Scanned Items List - Regular Scans */}
+        {scanType === 'regular' && scannedItems.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
             <h2 className="text-xl font-semibold text-slate-800 mb-4">
-              Your Scans ({scannedItems.length})
+              📦 Regular Scans ({scannedItems.length})
               {unsyncedCount > 0 && (
                 <span className="text-sm text-yellow-700 ml-2">
                   ({unsyncedCount} unsynced)
@@ -1029,6 +1118,81 @@ export default function StockCounter() {
                       <Trash2 size={18} />
                     </button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Manual Counts List */}
+        {scanType === 'manual' && manualCounts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+            <h2 className="text-xl font-semibold text-slate-800 mb-4">
+              ✍️ Manual Counts ({manualCounts.length})
+              <span className="text-sm text-purple-600 ml-2">
+                (Not tallied)
+              </span>
+            </h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {manualCounts.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50"
+                >
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-800">{item.product}</div>
+                    <div className="text-sm text-slate-500">
+                      {item.barcode} • Qty: {item.quantity} • {item.location}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setManualCounts((prev: any[]) => prev.filter((c: any) => c.id !== item.id));
+                    }}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Keg Counts List */}
+        {scanType === 'kegs' && kegCounts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+            <h2 className="text-xl font-semibold text-slate-800 mb-4">
+              🍺 Keg Counts ({kegCounts.length})
+            </h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {kegCounts.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50"
+                >
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-800">{item.product}</div>
+                    <div className="text-sm text-slate-500">
+                      {item.barcode} • Qty: {item.quantity} • {item.location}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setKegCounts((prev: any[]) => prev.filter((c: any) => c.id !== item.id));
+                    }}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
                 </div>
               ))}
             </div>
