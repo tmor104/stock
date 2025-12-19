@@ -18,6 +18,8 @@ function doPost(e) {
         return handleGetProductDatabase(request);
       case 'getLocations':
         return handleGetLocations(request);
+      case 'getKegs':
+        return handleGetKegs(request);
       case 'createStocktake':
         return handleCreateStocktake(request);
       case 'listStocktakes':
@@ -26,6 +28,10 @@ function doPost(e) {
         return handleSyncScans(request);
       case 'loadUserScans':
         return handleLoadUserScans(request);
+      case 'syncKegs':
+        return handleSyncKegs(request);
+      case 'syncManualEntries':
+        return handleSyncManualEntries(request);
       default:
         return createResponse(false, 'Unknown action: ' + action);
     }
@@ -127,6 +133,29 @@ function handleGetLocations(request) {
 }
 
 // ============================================
+// KEGS
+// ============================================
+
+function handleGetKegs(request) {
+  const ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+  const kegsSheet = ss.getSheetByName('Kegs');
+
+  if (!kegsSheet) {
+    return createResponse(false, 'Kegs sheet not found in Master Sheet');
+  }
+
+  const lastRow = kegsSheet.getLastRow();
+  if (lastRow < 2) {
+    return createResponse(true, 'No kegs found', { kegs: [] });
+  }
+
+  const data = kegsSheet.getRange('A2:A' + lastRow).getValues();
+  const kegs = data.map(row => row[0]).filter(keg => keg !== '');
+
+  return createResponse(true, 'Kegs loaded', { kegs });
+}
+
+// ============================================
 // STOCKTAKE MANAGEMENT
 // ============================================
 
@@ -154,6 +183,20 @@ function handleCreateStocktake(request) {
     'Barcode', 'Product', 'Quantity', 'Location', 'User', 'Timestamp', 'Stock Level', '$ Value', 'Synced', 'Sync ID'
   ]]);
   rawScansSheet.getRange('A1:J1').setFontWeight('bold').setBackground('#2D3748').setFontColor('#FFFFFF');
+
+  // Create Manual Entries sheet
+  const manualEntriesSheet = newSheet.insertSheet('Manual Entries');
+  manualEntriesSheet.getRange('A1:F1').setValues([[
+    'Product Name', 'Quantity', 'Location', 'User', 'Timestamp', 'Sync ID'
+  ]]);
+  manualEntriesSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#7C3AED').setFontColor('#FFFFFF');
+
+  // Create Kegs sheet
+  const kegsSheet = newSheet.insertSheet('Kegs');
+  kegsSheet.getRange('A1:E1').setValues([[
+    'Keg Name', 'Count', 'Location', 'User', 'Timestamp'
+  ]]);
+  kegsSheet.getRange('A1:E1').setFontWeight('bold').setBackground('#EA580C').setFontColor('#FFFFFF');
 
   // Store metadata as sheet property
   const sheetProps = PropertiesService.getDocumentProperties();
@@ -368,6 +411,123 @@ function handleLoadUserScans(request) {
   return createResponse(true, 'User scans loaded', {
     scans: userScans,
     count: userScans.length
+  });
+}
+
+// ============================================
+// KEGS SYNCING
+// ============================================
+
+function handleSyncKegs(request) {
+  const { stocktakeId, kegs, location, user } = request;
+
+  if (!kegs || kegs.length === 0) {
+    return createResponse(true, 'No kegs to sync', { syncedCount: 0 });
+  }
+
+  const ss = SpreadsheetApp.openById(stocktakeId);
+  const kegsSheet = ss.getSheetByName('Kegs');
+
+  if (!kegsSheet) {
+    return createResponse(false, 'Kegs sheet not found in stocktake');
+  }
+
+  const timestamp = new Date();
+  const dateStr = Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+
+  // Get kegs with counts > 0
+  const kegsToSync = kegs.filter(keg => keg.count > 0);
+
+  if (kegsToSync.length === 0) {
+    return createResponse(true, 'No kegs with counts to sync', { syncedCount: 0 });
+  }
+
+  // Prepare rows to add
+  const kegRows = kegsToSync.map(keg => [
+    keg.name,
+    keg.count,
+    location,
+    user,
+    dateStr
+  ]);
+
+  // Append to kegs sheet
+  const lastRow = kegsSheet.getLastRow();
+  kegsSheet.getRange(lastRow + 1, 1, kegRows.length, 5).setValues(kegRows);
+
+  return createResponse(true, 'Kegs synced successfully', {
+    syncedCount: kegsToSync.length
+  });
+}
+
+// ============================================
+// MANUAL ENTRIES SYNCING
+// ============================================
+
+function handleSyncManualEntries(request) {
+  const { stocktakeId, manualEntries } = request;
+
+  if (!manualEntries || manualEntries.length === 0) {
+    return createResponse(true, 'No manual entries to sync', { syncedCount: 0 });
+  }
+
+  const ss = SpreadsheetApp.openById(stocktakeId);
+  const manualSheet = ss.getSheetByName('Manual Entries');
+
+  if (!manualSheet) {
+    return createResponse(false, 'Manual Entries sheet not found in stocktake');
+  }
+
+  // Get all existing sync IDs to check for updates
+  const lastRow = manualSheet.getLastRow();
+  const existingSyncIds = {};
+
+  if (lastRow > 1) {
+    const existingData = manualSheet.getRange('F2:F' + lastRow).getValues(); // Column F is syncId
+    existingData.forEach((row, index) => {
+      if (row[0]) {
+        existingSyncIds[row[0]] = index + 2; // +2 because index is 0-based and we start at row 2
+      }
+    });
+  }
+
+  const entriesToAdd = [];
+  const syncedIds = [];
+
+  // Process each manual entry - either update existing or prepare to add new
+  manualEntries.forEach(entry => {
+    const entryRow = [
+      entry.product,
+      entry.quantity,
+      entry.location,
+      entry.user,
+      entry.timestamp,
+      entry.syncId
+    ];
+
+    if (existingSyncIds[entry.syncId]) {
+      // Update existing entry
+      const rowIndex = existingSyncIds[entry.syncId];
+      manualSheet.getRange(rowIndex, 1, 1, 6).setValues([entryRow]);
+    } else {
+      // Add to list of new entries to append
+      entriesToAdd.push(entryRow);
+    }
+
+    syncedIds.push(entry.syncId);
+  });
+
+  // Append new entries if any
+  if (entriesToAdd.length > 0) {
+    const newLastRow = manualSheet.getLastRow();
+    manualSheet.getRange(newLastRow + 1, 1, entriesToAdd.length, 6).setValues(entriesToAdd);
+  }
+
+  return createResponse(true, 'Manual entries synced successfully', {
+    syncedCount: manualEntries.length,
+    syncedIds: syncedIds,
+    newEntries: entriesToAdd.length,
+    updatedEntries: manualEntries.length - entriesToAdd.length
   });
 }
 

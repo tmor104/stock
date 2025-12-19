@@ -228,6 +228,18 @@ class GoogleSheetsService {
   async loadUserScans(stocktakeId: string, username: string) {
     return this.callAPI('loadUserScans', { stocktakeId, username });
   }
+
+  async getKegs() {
+    return this.callAPI('getKegs');
+  }
+
+  async syncKegs(stocktakeId: string, kegs: any[], location: string, user: string) {
+    return this.callAPI('syncKegs', { stocktakeId, kegs, location, user });
+  }
+
+  async syncManualEntries(stocktakeId: string, manualEntries: any[]) {
+    return this.callAPI('syncManualEntries', { stocktakeId, manualEntries });
+  }
 }
 
 // ============================================
@@ -249,6 +261,7 @@ export default function StockCounter() {
   const [locations, setLocations] = useState<string[]>([]);
   const [scannedItems, setScannedItems] = useState<any[]>([]);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [kegsList, setKegsList] = useState<any[]>([]);
 
   // Scan Mode
   const [scanType, setScanType] = useState('regular'); // regular, manual, kegs
@@ -259,7 +272,6 @@ export default function StockCounter() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [manualCounts, setManualCounts] = useState<any[]>([]);
-  const [kegCounts, setKegCounts] = useState<any[]>([]);
 
   // UI State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -287,6 +299,30 @@ export default function StockCounter() {
       window.removeEventListener('offline', () => setIsOnline(false));
     };
   }, []);
+
+  // Load kegs when switching to kegs mode
+  useEffect(() => {
+    if (scanType === 'kegs' && kegsList.length === 0) {
+      loadKegs();
+    }
+  }, [scanType]);
+
+  const loadKegs = async () => {
+    try {
+      const result = await apiService.getKegs();
+      if (result.success) {
+        // Initialize kegs with count = 0
+        const kegsWithCounts = result.kegs.map((kegName: string) => ({
+          name: kegName,
+          count: 0
+        }));
+        setKegsList(kegsWithCounts);
+      }
+    } catch (error) {
+      console.error('Error loading kegs:', error);
+      alert('Failed to load kegs from Master Sheet');
+    }
+  };
 
   const initializeApp = async () => {
     try {
@@ -520,49 +556,27 @@ export default function StockCounter() {
       return;
     }
 
-    if (scanType === 'manual') {
-      // Manual count - store separately, don't sync
-      const manualCount = {
-        id: `manual-${Date.now()}-${Math.random()}`,
-        barcode: currentProduct.barcode,
-        product: currentProduct.product,
-        quantity: qty,
-        location: currentLocation,
-        user: user.username,
-        timestamp: new Date().toISOString(),
-        type: 'manual'
-      };
-      setManualCounts((prev: any[]) => [manualCount, ...prev]);
-    } else if (scanType === 'kegs') {
-      // Keg count - store separately, sync to kegs sheet
-      const kegCount = {
-        id: `keg-${Date.now()}-${Math.random()}`,
-        barcode: currentProduct.barcode,
-        product: currentProduct.product,
-        quantity: qty,
-        location: currentLocation,
-        user: user.username,
-        timestamp: new Date().toISOString(),
-        type: 'keg',
-        synced: false
-      };
-      setKegCounts((prev: any[]) => [kegCount, ...prev]);
-    } else {
-      // Regular scan
-      const scan = {
-        syncId: `${Date.now()}-${Math.random()}`,
-        barcode: currentProduct.barcode,
-        product: currentProduct.product,
-        quantity: qty,
-        location: currentLocation,
-        user: user.username,
-        timestamp: new Date().toISOString(),
-        stockLevel: currentProduct.currentStock || 0,
-        value: currentProduct.value || 0,
-        synced: false
-      };
+    // Regular scan (or manual entry)
+    const isManualEntry = currentProduct.isManualEntry;
+    const scan = {
+      syncId: `${Date.now()}-${Math.random()}`,
+      barcode: isManualEntry ? '' : currentProduct.barcode,
+      product: currentProduct.product,
+      quantity: qty,
+      location: currentLocation,
+      user: user.username,
+      timestamp: new Date().toISOString(),
+      stockLevel: currentProduct.currentStock || 0,
+      value: currentProduct.value || 0,
+      synced: false,
+      isManualEntry: isManualEntry || false
+    };
 
-      // Save to IndexedDB
+    if (isManualEntry) {
+      // Store manual entry separately
+      setManualCounts((prev: any[]) => [scan, ...prev]);
+    } else {
+      // Save regular scan to IndexedDB
       await dbService.saveScan(scan);
 
       // Update UI
@@ -579,6 +593,8 @@ export default function StockCounter() {
     setCurrentProduct(null);
     setQuantityInput('');
     setBarcodeInput('');
+    setSearchQuery('');
+    setSearchResults([]);
     setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
@@ -704,6 +720,95 @@ export default function StockCounter() {
     }
   };
 
+  const syncKegs = async () => {
+    if (!currentStocktake || isSyncing) return;
+
+    // Filter kegs with count > 0
+    const kegsWithCounts = kegsList.filter((keg: any) => keg.count > 0);
+
+    if (kegsWithCounts.length === 0) {
+      alert('No keg counts to sync. Please add counts before syncing.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncStatus('Syncing kegs...');
+
+    try {
+      const result = await apiService.syncKegs(
+        currentStocktake.id,
+        kegsWithCounts,
+        currentLocation,
+        user.username
+      );
+
+      if (result.success) {
+        setSyncStatus(`Synced ${result.syncedCount} kegs!`);
+
+        // Reset keg counts after successful sync
+        setKegsList((prev: any[]) =>
+          prev.map((keg: any) => ({ ...keg, count: 0 }))
+        );
+
+        setTimeout(() => setSyncStatus(''), 3000);
+        alert(`Successfully synced ${result.syncedCount} kegs to spreadsheet!`);
+      } else {
+        setSyncStatus('Sync failed');
+        setTimeout(() => setSyncStatus(''), 3000);
+        alert('Failed to sync kegs: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Keg sync error:', error);
+      setSyncStatus('Sync failed');
+      setTimeout(() => setSyncStatus(''), 3000);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to sync kegs: ' + errorMessage);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const syncManualEntries = async () => {
+    if (!currentStocktake || isSyncing) return;
+
+    if (manualCounts.length === 0) {
+      alert('No manual entries to sync.');
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncStatus('Syncing manual entries...');
+
+    try {
+      const result = await apiService.syncManualEntries(
+        currentStocktake.id,
+        manualCounts
+      );
+
+      if (result.success) {
+        setSyncStatus(`Synced ${result.syncedCount} manual entries!`);
+
+        // Clear manual entries after successful sync
+        setManualCounts([]);
+
+        setTimeout(() => setSyncStatus(''), 3000);
+        alert(`Successfully synced ${result.syncedCount} manual entries to spreadsheet!`);
+      } else {
+        setSyncStatus('Sync failed');
+        setTimeout(() => setSyncStatus(''), 3000);
+        alert('Failed to sync manual entries: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Manual entry sync error:', error);
+      setSyncStatus('Sync failed');
+      setTimeout(() => setSyncStatus(''), 3000);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to sync manual entries: ' + errorMessage);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleChangeLocation = async (newLocation: string) => {
     setCurrentLocation(newLocation);
     await dbService.saveState('currentLocation', newLocation);
@@ -750,7 +855,7 @@ export default function StockCounter() {
   // RENDER: LOGIN PAGE
   // ============================================
   if (appMode === 'login') {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} dbService={dbService} />;
   }
 
   // ============================================
@@ -806,7 +911,7 @@ export default function StockCounter() {
           {/* Scan Type Selector */}
           <div className="mb-4">
             <label className="text-sm font-medium text-white mb-2 block">Scan Type</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setScanType('regular')}
                 className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
@@ -815,17 +920,7 @@ export default function StockCounter() {
                     : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
-                📦 Regular
-              </button>
-              <button
-                onClick={() => setScanType('manual')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
-                  scanType === 'manual'
-                    ? 'bg-white text-purple-600 shadow-lg'
-                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
-                }`}
-              >
-                ✍️ Manual
+                📦 Regular Scans
               </button>
               <button
                 onClick={() => setScanType('kegs')}
@@ -835,7 +930,7 @@ export default function StockCounter() {
                     : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
-                🍺 Kegs
+                🍺 Keg Counting
               </button>
             </div>
           </div>
@@ -956,8 +1051,8 @@ export default function StockCounter() {
               {/* Box Counter Quick Options */}
               <div className="mb-3">
                 <label className="block text-xs text-slate-600 mb-2 font-semibold">Quick Add (Boxes):</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[5, 12, 24, 30].map(amount => (
+                <div className="grid grid-cols-6 gap-2">
+                  {[1, 5, 6, 7, 12, 24].map(amount => (
                     <button
                       key={amount}
                       onClick={() => {
@@ -997,7 +1092,11 @@ export default function StockCounter() {
         {currentMode === 'search' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
             <button
-              onClick={() => setCurrentMode('scan')}
+              onClick={() => {
+                setCurrentMode('scan');
+                setSearchQuery('');
+                setSearchResults([]);
+              }}
               className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
             >
               <ArrowLeft size={20} /> Back to Scan
@@ -1015,6 +1114,29 @@ export default function StockCounter() {
               className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
               autoFocus
             />
+
+            {searchQuery.trim() && searchResults.length === 0 && (
+              <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                <p className="text-purple-800 font-semibold mb-3">✍️ Product not found in database</p>
+                <p className="text-purple-700 text-sm mb-4">Create a manual entry for: "{searchQuery}"</p>
+                <button
+                  onClick={() => {
+                    setCurrentProduct({
+                      product: searchQuery,
+                      barcode: '',
+                      currentStock: 0,
+                      value: 0,
+                      isManualEntry: true
+                    });
+                    setCurrentMode('scan');
+                    setTimeout(() => quantityInputRef.current?.focus(), 100);
+                  }}
+                  className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 font-semibold transition-all shadow-md"
+                >
+                  ✍️ Create Manual Entry
+                </button>
+              </div>
+            )}
 
             {searchResults.length > 0 && (
               <div className="mt-4 max-h-96 overflow-y-auto">
@@ -1077,7 +1199,7 @@ export default function StockCounter() {
 
         {/* Scanned Items List - Regular Scans */}
         {scanType === 'regular' && scannedItems.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
             <h2 className="text-xl font-semibold text-slate-800 mb-4">
               📦 Regular Scans ({scannedItems.length})
               {unsyncedCount > 0 && (
@@ -1124,15 +1246,25 @@ export default function StockCounter() {
           </div>
         )}
 
-        {/* Manual Counts List */}
-        {scanType === 'manual' && manualCounts.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
-              ✍️ Manual Counts ({manualCounts.length})
-              <span className="text-sm text-purple-600 ml-2">
-                (Not tallied)
-              </span>
-            </h2>
+        {/* Manual Entries List */}
+        {scanType === 'regular' && manualCounts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-slate-800">
+                ✍️ Manual Entries ({manualCounts.length})
+                <span className="text-sm text-purple-600 ml-2">
+                  (Not in barcode database)
+                </span>
+              </h2>
+              <button
+                onClick={syncManualEntries}
+                disabled={!isOnline || isSyncing}
+                className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                Sync Manual Entries
+              </button>
+            </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {manualCounts.map((item, idx) => (
                 <div
@@ -1140,9 +1272,9 @@ export default function StockCounter() {
                   className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50"
                 >
                   <div className="flex-1">
-                    <div className="font-semibold text-slate-800">{item.product}</div>
+                    <div className="font-semibold text-slate-800">✍️ {item.product}</div>
                     <div className="text-sm text-slate-500">
-                      {item.barcode} • Qty: {item.quantity} • {item.location}
+                      Manual Entry • Qty: {item.quantity} • {item.location}
                     </div>
                     <div className="text-xs text-slate-400">
                       {new Date(item.timestamp).toLocaleString()}
@@ -1150,7 +1282,7 @@ export default function StockCounter() {
                   </div>
                   <button
                     onClick={() => {
-                      setManualCounts((prev: any[]) => prev.filter((c: any) => c.id !== item.id));
+                      setManualCounts((prev: any[]) => prev.filter((c: any) => c.syncId !== item.syncId));
                     }}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete"
@@ -1163,39 +1295,59 @@ export default function StockCounter() {
           </div>
         )}
 
-        {/* Keg Counts List */}
-        {scanType === 'kegs' && kegCounts.length > 0 && (
+        {/* Keg Counting Table */}
+        {scanType === 'kegs' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
-              🍺 Keg Counts ({kegCounts.length})
-            </h2>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {kegCounts.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50"
-                >
-                  <div className="flex-1">
-                    <div className="font-semibold text-slate-800">{item.product}</div>
-                    <div className="text-sm text-slate-500">
-                      {item.barcode} • Qty: {item.quantity} • {item.location}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {new Date(item.timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setKegCounts((prev: any[]) => prev.filter((c: any) => c.id !== item.id));
-                    }}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-slate-800">
+                🍺 Keg Counting
+              </h2>
+              <button
+                onClick={syncKegs}
+                disabled={!isOnline || isSyncing || kegsList.every((k: any) => k.count === 0)}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                Sync Kegs
+              </button>
             </div>
+            {kegsList.length === 0 ? (
+              <p className="text-center text-slate-600 py-8">Loading kegs from Master Sheet...</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-orange-100 border-b-2 border-orange-300">
+                      <th className="text-left p-3 font-bold text-orange-900">Keg Name</th>
+                      <th className="text-center p-3 font-bold text-orange-900">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kegsList.map((keg, idx) => (
+                      <tr key={idx} className="border-b border-slate-200 hover:bg-orange-50">
+                        <td className="p-3 font-semibold text-slate-800">{keg.name}</td>
+                        <td className="p-3 text-center">
+                          <input
+                            type="number"
+                            value={keg.count}
+                            onChange={(e) => {
+                              const newCount = parseInt(e.target.value) || 0;
+                              setKegsList((prev: any[]) =>
+                                prev.map((k: any, i: number) =>
+                                  i === idx ? { ...k, count: newCount } : k
+                                )
+                              );
+                            }}
+                            className="w-24 px-3 py-2 text-center border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
+                            min="0"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1208,12 +1360,16 @@ export default function StockCounter() {
 // ============================================
 interface LoginPageProps {
   onLogin: (username: string, password: string) => Promise<boolean>;
+  dbService: IndexedDBService;
 }
 
-function LoginPage({ onLogin }: LoginPageProps) {
+function LoginPage({ onLogin, dbService }: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [viewingData, setViewingData] = useState(false);
+  const [savedData, setSavedData] = useState<any[]>([]);
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -1221,6 +1377,116 @@ function LoginPage({ onLogin }: LoginPageProps) {
     await onLogin(username, password);
     setLoading(false);
   };
+
+  const handleViewData = async () => {
+    try {
+      await dbService.init();
+      const scans = await dbService.getAllScans();
+      const unsynced = await dbService.getUnsyncedScans();
+
+      // Group scans by stocktake
+      const grouped: Record<string, any[]> = {};
+      scans.forEach((scan: any) => {
+        const stocktakeId = 'unknown';
+        if (!grouped[stocktakeId]) {
+          grouped[stocktakeId] = [];
+        }
+        grouped[stocktakeId].push(scan);
+      });
+
+      setSavedData(scans);
+      setUnsyncedCount(unsynced.length);
+      setViewingData(true);
+    } catch (error) {
+      alert('Failed to load saved data');
+    }
+  };
+
+  const handleClearData = async () => {
+    if (unsyncedCount > 0) {
+      if (!confirm(`⚠️ WARNING: You have ${unsyncedCount} unsynced scans!\n\nClearing cache will DELETE all unsynced data permanently.\n\nAre you sure you want to continue?`)) {
+        return;
+      }
+      if (!confirm('This action cannot be undone. Clear all data?')) {
+        return;
+      }
+    } else {
+      if (!confirm('Clear all cached scan data?')) {
+        return;
+      }
+    }
+
+    try {
+      await dbService.init();
+      await dbService.clearScans();
+      await dbService.saveState('user', null);
+      await dbService.saveState('currentStocktake', null);
+      setSavedData([]);
+      setUnsyncedCount(0);
+      alert('✓ Cache cleared successfully!');
+      setViewingData(false);
+    } catch (error) {
+      alert('Failed to clear cache');
+    }
+  };
+
+  if (viewingData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">📊 Saved Scan Data</h2>
+              <button
+                onClick={() => setViewingData(false)}
+                className="text-slate-600 hover:text-slate-800 flex items-center gap-2"
+              >
+                <ArrowLeft size={20} /> Back to Login
+              </button>
+            </div>
+
+            {unsyncedCount > 0 && (
+              <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+                <p className="text-yellow-800 font-semibold">⚠️ Warning: {unsyncedCount} unsynced scans</p>
+                <p className="text-yellow-700 text-sm">Please sync your data before clearing cache to avoid data loss.</p>
+              </div>
+            )}
+
+            {savedData.length === 0 ? (
+              <p className="text-center text-slate-600 py-8">No saved scan data found</p>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-slate-600">Total scans: {savedData.length}</p>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {savedData.map((scan: any, idx: number) => (
+                    <div key={idx} className="p-3 border rounded-lg bg-slate-50">
+                      <div className="font-semibold">{scan.product}</div>
+                      <div className="text-sm text-slate-600">
+                        Qty: {scan.quantity} • {scan.location} • {scan.user}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {new Date(scan.timestamp).toLocaleString()}
+                        {!scan.synced && <span className="ml-2 text-yellow-600 font-semibold">⚠️ Unsynced</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleClearData}
+                className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 font-bold transition-all shadow-lg"
+              >
+                Clear All Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
@@ -1260,6 +1526,14 @@ function LoginPage({ onLogin }: LoginPageProps) {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          <button
+            type="button"
+            onClick={handleViewData}
+            className="w-full mt-3 bg-slate-100 text-slate-700 py-3 rounded-lg hover:bg-slate-200 font-semibold transition-all border-2 border-slate-300"
+          >
+            📊 View Saved Data
+          </button>
         </form>
       </div>
     </div>
@@ -1283,6 +1557,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
   const [mode, setMode] = useState('menu'); // menu, create, select
   const [stocktakeName, setStocktakeName] = useState('');
   const [availableStocktakes, setAvailableStocktakes] = useState<any[]>([]);
+  const [selectedStocktake, setSelectedStocktake] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -1365,7 +1640,10 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <button
-              onClick={() => setMode('menu')}
+              onClick={() => {
+                setMode('menu');
+                setSelectedStocktake(null);
+              }}
               className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
             >
               <ArrowLeft size={20} /> Back
@@ -1378,22 +1656,59 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
             ) : availableStocktakes.length === 0 ? (
               <p className="text-center text-slate-600">No stocktakes found</p>
             ) : (
-              <div className="space-y-3">
-                {availableStocktakes.map((stocktake: any) => (
-                  <div
-                    key={stocktake.id}
-                    onClick={() => onSelectStocktake(stocktake)}
-                    className="p-4 border-2 border-slate-200 rounded-lg hover:border-slate-400 hover:bg-slate-50 cursor-pointer transition-all"
-                  >
-                    <div className="font-semibold text-slate-800">{stocktake.name}</div>
-                    <div className="text-sm text-slate-500 mt-1">
-                      Created: {stocktake.createdDate} • By: {stocktake.createdBy}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-slate-700 mb-2">Available Stocktakes</h3>
+                  {availableStocktakes.map((stocktake: any) => (
+                    <div
+                      key={stocktake.id}
+                      onClick={() => setSelectedStocktake(stocktake)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedStocktake?.id === stocktake.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="font-semibold text-slate-800">{stocktake.name}</div>
+                      <div className="text-sm text-slate-500 mt-1">
+                        Created: {stocktake.createdDate}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {new Date(stocktake.lastModified).toLocaleString()}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      Last modified: {new Date(stocktake.lastModified).toLocaleString()}
+                  ))}
+                </div>
+
+                {selectedStocktake && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                    <h3 className="font-bold text-xl text-blue-900 mb-4">Stocktake Details</h3>
+                    <div className="space-y-3 mb-6">
+                      <div>
+                        <p className="text-sm text-blue-700 font-semibold">Name:</p>
+                        <p className="text-blue-900">{selectedStocktake.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-700 font-semibold">Created By:</p>
+                        <p className="text-blue-900">{selectedStocktake.createdBy}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-700 font-semibold">Created Date:</p>
+                        <p className="text-blue-900">{selectedStocktake.createdDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-700 font-semibold">Last Modified:</p>
+                        <p className="text-blue-900">{new Date(selectedStocktake.lastModified).toLocaleString()}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => onSelectStocktake(selectedStocktake)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg transform hover:scale-105"
+                    >
+                      📦 Continue with this Stocktake
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
