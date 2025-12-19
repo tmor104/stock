@@ -468,12 +468,24 @@ export default function StockCounter() {
       const result = await apiService.loadUserScans(stocktake.id, user.username);
 
       if (result.success && result.scans.length > 0) {
-        // Save to IndexedDB
+        // Save to IndexedDB with source marker
         for (const scan of result.scans) {
-          await dbService.saveScan(scan);
+          const scanWithSource = {
+            ...scan,
+            stocktakeId: stocktake.id,
+            stocktakeName: stocktake.name,
+            source: 'loaded_from_server'
+          };
+          await dbService.saveScan(scanWithSource);
         }
         // Sort scans by timestamp (most recent first)
-        const sortedScans = [...result.scans].sort((a, b) =>
+        const scansWithSource = result.scans.map((scan: any) => ({
+          ...scan,
+          stocktakeId: stocktake.id,
+          stocktakeName: stocktake.name,
+          source: 'loaded_from_server'
+        }));
+        const sortedScans = [...scansWithSource].sort((a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
         setScannedItems(sortedScans);
@@ -569,7 +581,10 @@ export default function StockCounter() {
       stockLevel: currentProduct.currentStock || 0,
       value: currentProduct.value || 0,
       synced: false,
-      isManualEntry: isManualEntry || false
+      isManualEntry: isManualEntry || false,
+      stocktakeId: currentStocktake?.id || 'unknown',
+      stocktakeName: currentStocktake?.name || 'Unknown Stocktake',
+      source: 'local_scan'
     };
 
     if (isManualEntry) {
@@ -1384,16 +1399,6 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
       const scans = await dbService.getAllScans();
       const unsynced = await dbService.getUnsyncedScans();
 
-      // Group scans by stocktake
-      const grouped: Record<string, any[]> = {};
-      scans.forEach((scan: any) => {
-        const stocktakeId = 'unknown';
-        if (!grouped[stocktakeId]) {
-          grouped[stocktakeId] = [];
-        }
-        grouped[stocktakeId].push(scan);
-      });
-
       setSavedData(scans);
       setUnsyncedCount(unsynced.length);
       setViewingData(true);
@@ -1456,21 +1461,83 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
               <p className="text-center text-slate-600 py-8">No saved scan data found</p>
             ) : (
               <div className="space-y-4">
-                <p className="text-slate-600">Total scans: {savedData.length}</p>
-                <div className="max-h-96 overflow-y-auto space-y-2">
-                  {savedData.map((scan: any, idx: number) => (
-                    <div key={idx} className="p-3 border rounded-lg bg-slate-50">
-                      <div className="font-semibold">{scan.product}</div>
-                      <div className="text-sm text-slate-600">
-                        Qty: {scan.quantity} • {scan.location} • {scan.user}
+                <p className="text-slate-600 font-semibold">Total scans: {savedData.length}</p>
+
+                {/* Group scans by stocktake */}
+                {Object.entries(
+                  savedData.reduce((groups: Record<string, any[]>, scan: any) => {
+                    const stocktakeKey = scan.stocktakeId || 'unknown';
+                    const stocktakeName = scan.stocktakeName || 'Unknown Stocktake';
+                    const key = `${stocktakeKey}::${stocktakeName}`;
+                    if (!groups[key]) {
+                      groups[key] = [];
+                    }
+                    groups[key].push(scan);
+                    return groups;
+                  }, {})
+                ).map(([key, scans]: [string, any]) => {
+                  const [stocktakeId, stocktakeName] = key.split('::');
+                  const stocktakeUnsynced = scans.filter((s: any) => !s.synced).length;
+
+                  return (
+                    <div key={key} className="border-2 border-slate-300 rounded-lg p-4 bg-white">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-bold text-lg text-slate-800">📦 {stocktakeName}</h3>
+                          <p className="text-xs text-slate-500">ID: {stocktakeId}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-700">{scans.length} scans</p>
+                          {stocktakeUnsynced > 0 && (
+                            <p className="text-xs text-yellow-600 font-semibold">
+                              ⚠️ {stocktakeUnsynced} unsynced
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400">
-                        {new Date(scan.timestamp).toLocaleString()}
-                        {!scan.synced && <span className="ml-2 text-yellow-600 font-semibold">⚠️ Unsynced</span>}
-                      </div>
+
+                      {/* Group by source within stocktake */}
+                      {Object.entries(
+                        scans.reduce((sourceGroups: Record<string, any[]>, scan: any) => {
+                          const source = scan.source || 'unknown';
+                          if (!sourceGroups[source]) {
+                            sourceGroups[source] = [];
+                          }
+                          sourceGroups[source].push(scan);
+                          return sourceGroups;
+                        }, {})
+                      ).map(([source, sourceScans]: [string, any]) => {
+                        const sourceLabel = {
+                          'local_scan': '📱 Local Scans',
+                          'loaded_from_server': '☁️ Loaded from Server',
+                          'unknown': '❓ Unknown Source'
+                        }[source] || source;
+
+                        return (
+                          <div key={source} className="mb-3">
+                            <p className="text-sm font-semibold text-slate-600 mb-2">
+                              {sourceLabel} ({sourceScans.length})
+                            </p>
+                            <div className="max-h-64 overflow-y-auto space-y-2 pl-3">
+                              {sourceScans.map((scan: any, idx: number) => (
+                                <div key={idx} className="p-2 border rounded bg-slate-50 text-sm">
+                                  <div className="font-semibold">{scan.product}</div>
+                                  <div className="text-xs text-slate-600">
+                                    Qty: {scan.quantity} • {scan.location} • {scan.user}
+                                  </div>
+                                  <div className="text-xs text-slate-400">
+                                    {new Date(scan.timestamp).toLocaleString()}
+                                    {!scan.synced && <span className="ml-2 text-yellow-600 font-semibold">⚠️ Unsynced</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             )}
 
