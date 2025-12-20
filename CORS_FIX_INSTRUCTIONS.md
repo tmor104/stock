@@ -57,26 +57,57 @@ function doPost(e) {
 
 ## Deployment Steps
 
-1. **Open Google Apps Script**
+### Option 1: Quick Update (Recommended)
+
+1. **Open Your Existing Apps Script**
    - Go to https://script.google.com
-   - Open your existing stock counter script
+   - Find and open your "Stock Counter" script (or whatever you named it)
 
-2. **Add CORS Headers**
-   - Copy the `createCorsResponse` function from `Code.gs`
-   - Update ALL your `doGet` and `doPost` functions to use `createCorsResponse()`
-   - Make sure EVERY response includes the CORS headers
+2. **Replace the Entire Code**
+   - Select ALL the existing code (Ctrl+A / Cmd+A)
+   - Delete it
+   - Open the `AppsScript.gs` file from this repository
+   - Copy ALL the code from `AppsScript.gs`
+   - Paste it into your Apps Script editor
 
-3. **Deploy as Web App**
+3. **Verify Your Master Sheet ID**
+   - Check line 6: `const MASTER_SHEET_ID = '1e3rsYW4RoEpxpH8ZMckLP7VdtnpbbfQpd8N_NB9fRgM';`
+   - Make sure this matches your actual Google Sheets ID
+   - If not, update it with the correct ID
+
+4. **Save the Script**
+   - Click the disk icon or press Ctrl+S / Cmd+S
+   - Give it a moment to save
+
+5. **Deploy New Version**
    - Click "Deploy" → "New deployment"
-   - Choose type: "Web app"
-   - Execute as: "Me"
-   - Who has access: "Anyone" (or "Anyone with Google account" depending on your needs)
+   - Click the gear icon ⚙️ next to "Select type"
+   - Choose "Web app"
+   - Configure:
+     - **Description:** "CORS fix deployment" (or anything you want)
+     - **Execute as:** Me (your email)
+     - **Who has access:** Anyone
    - Click "Deploy"
-   - Copy the new Web App URL
+   - You may need to authorize the script (click "Authorize access")
+   - Copy the **Web App URL** - this is your new API endpoint!
 
-4. **Update Your Frontend**
-   - Replace the old script URL with the new deployment URL
-   - Test the connection
+6. **Update Your Frontend Code**
+   - Find where you call the Apps Script URL in your frontend code
+   - Replace the old URL with the new Web App URL you just copied
+   - The URL should look like: `https://script.google.com/macros/s/AKfycb.../exec`
+
+### Option 2: Update Existing Deployment
+
+If you want to update your existing deployment instead:
+
+1. Follow steps 1-4 from Option 1
+2. Click "Deploy" → "Manage deployments"
+3. Click the edit icon (pencil) next to your existing deployment
+4. Change "Version" to "New version"
+5. Click "Deploy"
+6. The URL stays the same, but the code is updated
+
+**⚠️ IMPORTANT:** After deploying, wait 1-2 minutes before testing. Apps Script deployments sometimes take a moment to propagate.
 
 ## Important Notes
 
