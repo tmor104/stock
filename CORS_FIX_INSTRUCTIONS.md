@@ -10,7 +10,7 @@ When your GitHub Pages site (https://tmor104.github.io) tries to fetch data from
 
 ## The Solution
 
-You **MUST** add CORS headers to your Google Apps Script responses. See the `Code.gs` file for the complete implementation.
+You **MUST** add CORS headers to your Google Apps Script responses. This version is configured to allow requests from **ANY domain** using `Access-Control-Allow-Origin: *`. See the `AppsScript.gs` file for the complete implementation.
 
 ## Critical Code Sections
 
@@ -21,14 +21,12 @@ function createCorsResponse(data) {
   var output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
 
-  // CRITICAL: This header enables CORS
-  output.setHeader('Access-Control-Allow-Origin', 'https://tmor104.github.io');
-
-  // Or use '*' to allow any origin (less secure but works for testing)
-  // output.setHeader('Access-Control-Allow-Origin', '*');
+  // CRITICAL: This header enables CORS for ALL domains
+  output.setHeader('Access-Control-Allow-Origin', '*');
 
   output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  output.setHeader('Access-Control-Max-Age', '3600');
 
   return output;
 }

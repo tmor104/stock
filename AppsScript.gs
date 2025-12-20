@@ -389,14 +389,10 @@ function createResponse(success, message, data = {}) {
   output.setMimeType(ContentService.MimeType.JSON);
 
   // *** CRITICAL CORS HEADERS ***
-  // These headers tell the browser it's OK for your GitHub Pages site to access this script
+  // These headers tell the browser it's OK for ANY domain to access this script
 
-  // Option 1: Allow only your specific domain (most secure)
-  output.setHeader('Access-Control-Allow-Origin', 'https://tmor104.github.io');
-
-  // Option 2: Allow any domain (less secure, but good for testing)
-  // Uncomment the line below and comment out the line above if you need to allow all domains
-  // output.setHeader('Access-Control-Allow-Origin', '*');
+  // Allow ANY domain to access this API
+  output.setHeader('Access-Control-Allow-Origin', '*');
 
   // Allow these HTTP methods
   output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -406,9 +402,6 @@ function createResponse(success, message, data = {}) {
 
   // Cache preflight requests for 1 hour
   output.setHeader('Access-Control-Max-Age', '3600');
-
-  // Allow credentials (cookies, authorization headers)
-  output.setHeader('Access-Control-Allow-Credentials', 'true');
 
   return output;
 }
