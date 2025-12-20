@@ -568,5 +568,13 @@ function testSetup() {
   const locationsSheet = ss.getSheetByName('Locations');
   Logger.log('Locations found: ' + (locationsSheet.getLastRow() - 1));
 
+  Logger.log('Testing Kegs...');
+  const kegsSheet = ss.getSheetByName('Kegs');
+  if (kegsSheet) {
+    Logger.log('Kegs found: ' + (kegsSheet.getLastRow() - 1));
+  } else {
+    Logger.log('WARNING: Kegs sheet not found! You need to create it.');
+  }
+
   Logger.log('Setup test complete!');
 }
