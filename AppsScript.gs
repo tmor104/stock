@@ -546,7 +546,9 @@ function createResponse(success, message, data = {}) {
     .createTextOutput(JSON.stringify(response))
     .setMimeType(ContentService.MimeType.JSON)
     .setHeaders({
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
     });
 }
 
