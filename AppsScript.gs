@@ -372,9 +372,9 @@ function handleSyncKegs(request) {
   const rawScansSheet = ss.getSheetByName('Raw Scans');
 
   // Add kegs to Raw Scans sheet
-  const kegRows = kegs.map((keg: any) => {
+  const kegRows = kegs.map(function(keg) {
     const timestamp = new Date().toLocaleString();
-    const syncId = `KEG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const syncId = 'KEG_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
     return [
       'KEG',                    // Barcode
