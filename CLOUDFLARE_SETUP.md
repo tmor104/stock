@@ -56,7 +56,7 @@ Instead of calling the Apps Script URL directly, call the Cloudflare Worker URL:
 const API_URL = 'https://script.google.com/macros/s/AKfycb.../exec';
 
 // NEW - through Cloudflare Worker (no CORS issues):
-const API_URL = 'https://stock-counter-proxy.YOUR-SUBDOMAIN.workers.dev';
+const API_URL = 'https://stock-cors-proxy.tomwmorgan47.workers.dev';
 ```
 
 That's it! Your frontend now calls the Worker, which forwards to Apps Script and adds CORS headers.
@@ -68,7 +68,7 @@ That's it! Your frontend now calls the Worker, which forwards to Apps Script and
 Open your browser console (F12) and run:
 
 ```javascript
-fetch('https://YOUR-WORKER-URL.workers.dev')
+fetch('https://stock-cors-proxy.tomwmorgan47.workers.dev')
   .then(r => r.json())
   .then(data => console.log('✅ Worker is working!', data))
   .catch(err => console.error('❌ Error:', err));

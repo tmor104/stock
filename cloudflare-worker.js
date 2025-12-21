@@ -4,6 +4,8 @@
  * This worker acts as a proxy between your frontend and Google Apps Script,
  * automatically adding CORS headers to all responses.
  *
+ * Worker URL: https://stock-cors-proxy.tomwmorgan47.workers.dev/
+ *
  * SETUP:
  * 1. Go to https://dash.cloudflare.com
  * 2. Click "Workers & Pages" in the sidebar
@@ -15,6 +17,7 @@
  */
 
 // ⚠️ IMPORTANT: Replace this with your actual Google Apps Script URL
+// This should be the URL you get when deploying your Apps Script as a Web App
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6yH0XWvbsDlYvhf1OaozoQhGAvlRIFPlN9oV9dr-3P5gPZpb29yl9coSOkvzEYqD04w/exec';
 
 // CORS headers to add to every response
