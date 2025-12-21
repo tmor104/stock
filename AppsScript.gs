@@ -23,12 +23,16 @@ function doPost(e) {
         return handleGetProductDatabase(request);
       case 'getLocations':
         return handleGetLocations(request);
+      case 'getKegs':
+        return handleGetKegs(request);
       case 'createStocktake':
         return handleCreateStocktake(request);
       case 'listStocktakes':
         return handleListStocktakes(request);
       case 'syncScans':
         return handleSyncScans(request);
+      case 'syncKegs':
+        return handleSyncKegs(request);
       case 'loadUserScans':
         return handleLoadUserScans(request);
       default:
@@ -122,6 +126,30 @@ function handleGetLocations(request) {
   const locations = data.map(row => row[0]).filter(loc => loc !== '');
 
   return createResponse(true, 'Locations loaded', { locations });
+}
+
+// ============================================
+// KEGS
+// ============================================
+
+function handleGetKegs(request) {
+  const ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+  const kegsSheet = ss.getSheetByName('Kegs');
+
+  if (!kegsSheet) {
+    return createResponse(true, 'No kegs sheet found', { kegs: [] });
+  }
+
+  const lastRow = kegsSheet.getLastRow();
+  if (lastRow < 2) {
+    return createResponse(true, 'No kegs found', { kegs: [] });
+  }
+
+  // Get keg product names from first column (skip header row)
+  const data = kegsSheet.getRange('A2:A' + lastRow).getValues();
+  const kegs = data.map(row => row[0]).filter(keg => keg !== '');
+
+  return createResponse(true, 'Kegs loaded', { kegs });
 }
 
 // ============================================
@@ -327,6 +355,52 @@ function updateTally(tallySheet, rawScansSheet) {
   if (tallyRows.length > 0) {
     tallySheet.getRange(2, 1, tallyRows.length, 6).setValues(tallyRows);
   }
+}
+
+// ============================================
+// KEG SYNCING
+// ============================================
+
+function handleSyncKegs(request) {
+  const { stocktakeId, kegs, location, user } = request;
+
+  if (!kegs || kegs.length === 0) {
+    return createResponse(true, 'No kegs to sync', { syncedCount: 0 });
+  }
+
+  const ss = SpreadsheetApp.openById(stocktakeId);
+  const rawScansSheet = ss.getSheetByName('Raw Scans');
+
+  // Add kegs to Raw Scans sheet
+  const kegRows = kegs.map((keg: any) => {
+    const timestamp = new Date().toLocaleString();
+    const syncId = `KEG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    return [
+      'KEG',                    // Barcode
+      keg.name,                 // Product
+      keg.count,                // Quantity
+      location || '',           // Location
+      user || '',               // User
+      timestamp,                // Timestamp
+      0,                        // Stock Level (placeholder)
+      0,                        // $ Value (placeholder)
+      true,                     // Synced
+      syncId                    // Sync ID
+    ];
+  });
+
+  // Append to Raw Scans sheet
+  if (kegRows.length > 0) {
+    const lastRow = rawScansSheet.getLastRow();
+    rawScansSheet.getRange(lastRow + 1, 1, kegRows.length, 10).setValues(kegRows);
+  }
+
+  // Update Tally sheet
+  const tallySheet = ss.getSheetByName('Tally');
+  updateTallySheet(tallySheet, rawScansSheet);
+
+  return createResponse(true, 'Kegs synced successfully', { syncedCount: kegs.length });
 }
 
 // ============================================

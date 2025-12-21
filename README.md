@@ -53,6 +53,7 @@ A progressive web app for real-time inventory management with offline support, b
 │  - Users (authentication)                   │
 │  - Product Database                         │
 │  - Locations                                │
+│  - Kegs (keg/beverage products)             │
 │  - Stocktakes (dynamic sheets)              │
 └─────────────────────────────────────────────┘
 ```
@@ -65,11 +66,13 @@ The application supports full **bidirectional communication**:
 - ✅ User authentication
 - ✅ Create new stocktakes
 - ✅ Sync scanned items to Google Sheets
+- ✅ Sync keg counts to Google Sheets
 - ✅ Update inventory counts
 - ✅ Add/edit products
 
 ### Backend → Frontend (Read Operations)
 - ✅ Load product database
+- ✅ Load keg list
 - ✅ Load locations
 - ✅ Load existing stocktakes
 - ✅ Load user scans
@@ -81,6 +84,7 @@ The application supports full **bidirectional communication**:
 
 - 📱 **Progressive Web App** - Works offline, installable on mobile
 - 📷 **Barcode Scanning** - Camera-based barcode detection
+- 🍺 **Keg Counting** - Dedicated mode for kegs and beverages
 - 🔍 **Product Search** - Fuzzy search with autocomplete
 - 💾 **Offline Support** - IndexedDB for local storage
 - 🔄 **Auto-Sync** - Syncs every 10 scans or on-demand
@@ -106,6 +110,7 @@ The application supports full **bidirectional communication**:
    - `Users` - Column A: usernames
    - `Product Database` - Columns: Barcode, Product, Description, Price
    - `Locations` - List of warehouse locations
+   - `Kegs` - Column A: Keg/beverage product names
    - Individual stocktake sheets (created automatically)
 
 3. **Set up user passwords:**
@@ -296,14 +301,21 @@ npm run preview
 1. **Login** - Enter username and password
 2. **Select Location** - Choose warehouse location
 3. **Start/Resume Stocktake** - Create new or continue existing
-4. **Scan Products:**
+4. **Choose Scan Mode:**
+   - **📦 Regular Scans** - Barcode scanning for products
+   - **🍺 Keg Counting** - Manual counting for kegs/beverages
+5. **Regular Scanning:**
    - Use camera to scan barcodes
    - Or search manually
    - Enter quantities
    - Add notes if needed
-5. **Auto-Sync** - Every 10 scans sync to Google Sheets
-6. **Manual Sync** - Click sync button anytime
-7. **Offline Mode** - Continues working offline, syncs when online
+6. **Keg Counting:**
+   - View list of kegs from Master Sheet
+   - Enter counts directly in table
+   - Counts sync to stocktake sheet with barcode "KEG"
+7. **Auto-Sync** - Every 10 scans sync to Google Sheets
+8. **Manual Sync** - Click sync button anytime
+9. **Offline Mode** - Continues working offline, syncs when online
 
 ## 🛠️ API Endpoints
 
@@ -316,9 +328,11 @@ All requests go through: `https://stock-cors-proxy.tomwmorgan47.workers.dev`
 | `authenticate` | username, password | User login |
 | `getProductDatabase` | - | Load all products |
 | `getLocations` | - | Load warehouse locations |
+| `getKegs` | - | Load keg/beverage list |
 | `createStocktake` | stocktakeId, location, username | Create new stocktake |
 | `listStocktakes` | - | List all stocktakes |
 | `syncScans` | stocktakeId, scans[] | Sync scanned items |
+| `syncKegs` | stocktakeId, kegs[], location, user | Sync keg counts |
 | `loadUserScans` | stocktakeId, username | Load user's scans |
 
 ## 🚨 Troubleshooting
@@ -361,6 +375,13 @@ All requests go through: `https://stock-cors-proxy.tomwmorgan47.workers.dev`
 |---------------|
 | Warehouse A   |
 | Warehouse B   |
+
+### Kegs Sheet
+| Keg/Beverage Name    |
+|----------------------|
+| Guinness Keg 50L     |
+| Heineken Keg 30L     |
+| Coca-Cola Syrup 5gal |
 
 ### Stocktake Sheets (auto-created)
 | Username | Timestamp | Barcode | Product | Quantity | Location | Notes |
