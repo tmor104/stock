@@ -895,14 +895,14 @@ export default function StockCounter() {
   // RENDER: SCAN MODE
   // ============================================
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
+    <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="bg-white border-t-4 border-blue-500 rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-blue-300">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">📦 Stock Wizard</h1>
-              <p className="text-sm text-gray-600">
+              <h1 className="text-2xl sm:text-3xl font-bold text-black">📦 Stock Wizard</h1>
+              <p className="text-sm text-gray-900">
                 {user.username} • {currentStocktake?.name}
               </p>
             </div>
@@ -961,7 +961,7 @@ export default function StockCounter() {
                 className="w-full px-3 py-2 bg-white/20 backdrop-blur-sm border-2 border-white/30 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 {locations.map(loc => (
-                  <option key={loc} value={loc} className="text-slate-800">{loc}</option>
+                  <option key={loc} value={loc} className="text-black">{loc}</option>
                 ))}
               </select>
             </div>
@@ -1000,8 +1000,8 @@ export default function StockCounter() {
         {/* Scan Interface */}
         {currentMode === 'scan' && !currentProduct && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
-            <label className="block text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <Scan size={24} className="text-slate-600" /> Scan Barcode
+            <label className="block text-lg font-semibold text-black mb-3 flex items-center gap-2">
+              <Scan size={24} className="text-gray-900" /> Scan Barcode
             </label>
             <input
               ref={barcodeInputRef}
@@ -1041,13 +1041,13 @@ export default function StockCounter() {
         {currentProduct && currentMode === 'scan' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
             <div className="mb-4">
-              <div className="text-lg font-semibold text-slate-800">{currentProduct.product}</div>
+              <div className="text-lg font-semibold text-black">{currentProduct.product}</div>
               <div className="text-sm text-slate-500">Barcode: {currentProduct.barcode}</div>
-              <div className="text-sm text-slate-600">Current Stock: {currentProduct.currentStock} • Value: ${currentProduct.value}</div>
+              <div className="text-sm text-gray-900">Current Stock: {currentProduct.currentStock} • Value: ${currentProduct.value}</div>
             </div>
 
             <div>
-              <label className="block text-slate-700 mb-2">Enter Quantity</label>
+              <label className="block text-black mb-2">Enter Quantity</label>
               <input
                 ref={quantityInputRef}
                 type="number"
@@ -1066,7 +1066,7 @@ export default function StockCounter() {
 
               {/* Box Counter Quick Options */}
               <div className="mb-3">
-                <label className="block text-xs text-slate-600 mb-2 font-semibold">Quick Add (Boxes):</label>
+                <label className="block text-xs text-gray-900 mb-2 font-semibold">Quick Add (Boxes):</label>
                 <div className="grid grid-cols-6 gap-2">
                   {[1, 5, 6, 7, 12, 24].map(amount => (
                     <button
@@ -1113,12 +1113,12 @@ export default function StockCounter() {
                 setSearchQuery('');
                 setSearchResults([]);
               }}
-              className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
+              className="mb-4 flex items-center gap-2 text-gray-900 hover:text-black"
             >
               <ArrowLeft size={20} /> Back to Scan
             </button>
 
-            <label className="block text-lg font-semibold text-slate-700 mb-3">Search Product</label>
+            <label className="block text-lg font-semibold text-black mb-3">Search Product</label>
             <input
               type="text"
               value={searchQuery}
@@ -1162,7 +1162,7 @@ export default function StockCounter() {
                     onClick={() => selectSearchResult(product)}
                     className="p-3 hover:bg-slate-50 cursor-pointer border-b last:border-b-0 transition-colors"
                   >
-                    <div className="font-semibold text-slate-800">{product.product}</div>
+                    <div className="font-semibold text-black">{product.product}</div>
                     <div className="text-sm text-slate-500">Barcode: {product.barcode} • Stock: {product.currentStock}</div>
                   </div>
                 ))}
@@ -1175,16 +1175,16 @@ export default function StockCounter() {
         {editingScan && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Scan</h3>
+              <h3 className="text-xl font-bold text-black mb-4">Edit Scan</h3>
 
               <div className="mb-4">
-                <div className="text-lg font-semibold text-slate-800">{editingScan.product}</div>
+                <div className="text-lg font-semibold text-black">{editingScan.product}</div>
                 <div className="text-sm text-slate-500">Barcode: {editingScan.barcode}</div>
-                <div className="text-sm text-slate-600">Location: {editingScan.location}</div>
+                <div className="text-sm text-gray-900">Location: {editingScan.location}</div>
               </div>
 
               <div className="mb-6">
-                <label className="block text-slate-700 font-medium mb-2">Quantity</label>
+                <label className="block text-black font-medium mb-2">Quantity</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1216,7 +1216,7 @@ export default function StockCounter() {
         {/* Scanned Items List - Regular Scans */}
         {scanType === 'regular' && scannedItems.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
+            <h2 className="text-xl font-semibold text-black mb-4">
               📦 Regular Scans ({scannedItems.length})
               {unsyncedCount > 0 && (
                 <span className="text-sm text-yellow-700 ml-2">
@@ -1231,7 +1231,7 @@ export default function StockCounter() {
                   className={`flex items-center gap-3 p-3 rounded-lg border ${getSyncStatusColor(item)}`}
                 >
                   <div className="flex-1">
-                    <div className="font-semibold text-slate-800">{item.product}</div>
+                    <div className="font-semibold text-black">{item.product}</div>
                     <div className="text-sm text-slate-500">
                       {item.barcode} • Qty: {item.quantity} • {item.location}
                     </div>
@@ -1266,7 +1266,7 @@ export default function StockCounter() {
         {scanType === 'regular' && manualCounts.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">
+              <h2 className="text-xl font-semibold text-black">
                 ✍️ Manual Entries ({manualCounts.length})
                 <span className="text-sm text-purple-600 ml-2">
                   (Not in barcode database)
@@ -1288,7 +1288,7 @@ export default function StockCounter() {
                   className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 bg-blue-50"
                 >
                   <div className="flex-1">
-                    <div className="font-semibold text-slate-800">✍️ {item.product}</div>
+                    <div className="font-semibold text-black">✍️ {item.product}</div>
                     <div className="text-sm text-slate-500">
                       Manual Entry • Qty: {item.quantity} • {item.location}
                     </div>
@@ -1315,7 +1315,7 @@ export default function StockCounter() {
         {scanType === 'kegs' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">
+              <h2 className="text-xl font-semibold text-black">
                 🍺 Keg Counting
               </h2>
               <button
@@ -1328,7 +1328,7 @@ export default function StockCounter() {
               </button>
             </div>
             {kegsList.length === 0 ? (
-              <p className="text-center text-slate-600 py-8">Loading kegs from Master Sheet...</p>
+              <p className="text-center text-gray-900 py-8">Loading kegs from Master Sheet...</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -1341,7 +1341,7 @@ export default function StockCounter() {
                   <tbody>
                     {kegsList.map((keg, idx) => (
                       <tr key={idx} className="border-b border-slate-200 hover:bg-blue-50">
-                        <td className="p-3 font-semibold text-slate-800">{keg.name}</td>
+                        <td className="p-3 font-semibold text-black">{keg.name}</td>
                         <td className="p-3 text-center">
                           <input
                             type="number"
@@ -1442,10 +1442,10 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-2xl p-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">📊 Saved Scan Data</h2>
+              <h2 className="text-2xl font-bold text-black">📊 Saved Scan Data</h2>
               <button
                 onClick={() => setViewingData(false)}
-                className="text-slate-600 hover:text-slate-800 flex items-center gap-2"
+                className="text-gray-900 hover:text-black flex items-center gap-2"
               >
                 <ArrowLeft size={20} /> Back to Login
               </button>
@@ -1459,10 +1459,10 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
             )}
 
             {savedData.length === 0 ? (
-              <p className="text-center text-slate-600 py-8">No saved scan data found</p>
+              <p className="text-center text-gray-900 py-8">No saved scan data found</p>
             ) : (
               <div className="space-y-4">
-                <p className="text-slate-600 font-semibold">Total scans: {savedData.length}</p>
+                <p className="text-gray-900 font-semibold">Total scans: {savedData.length}</p>
 
                 {/* Group scans by stocktake */}
                 {Object.entries(
@@ -1484,11 +1484,11 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
                     <div key={key} className="border-2 border-slate-300 rounded-lg p-4 bg-white">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-bold text-lg text-slate-800">📦 {stocktakeName}</h3>
+                          <h3 className="font-bold text-lg text-black">📦 {stocktakeName}</h3>
                           <p className="text-xs text-slate-500">ID: {stocktakeId}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-700">{scans.length} scans</p>
+                          <p className="text-sm font-semibold text-black">{scans.length} scans</p>
                           {stocktakeUnsynced > 0 && (
                             <p className="text-xs text-yellow-600 font-semibold">
                               ⚠️ {stocktakeUnsynced} unsynced
@@ -1516,14 +1516,14 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
 
                         return (
                           <div key={source} className="mb-3">
-                            <p className="text-sm font-semibold text-slate-600 mb-2">
+                            <p className="text-sm font-semibold text-gray-900 mb-2">
                               {sourceLabel} ({sourceScans.length})
                             </p>
                             <div className="max-h-64 overflow-y-auto space-y-2 pl-3">
                               {sourceScans.map((scan: any, idx: number) => (
                                 <div key={idx} className="p-2 border rounded bg-slate-50 text-sm">
                                   <div className="font-semibold">{scan.product}</div>
-                                  <div className="text-xs text-slate-600">
+                                  <div className="text-xs text-gray-900">
                                     Qty: {scan.quantity} • {scan.location} • {scan.user}
                                   </div>
                                   <div className="text-xs text-slate-400">
@@ -1560,11 +1560,11 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center p-3 sm:p-4 md:p-6">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform hover:scale-105 transition-transform">
         <h1 className="text-3xl sm:text-4xl font-bold bg-blue-500 hover:bg-blue-600 bg-clip-text text-transparent mb-2">📦 Stock Wizard</h1>
-        <p className="text-slate-600 mb-8 font-medium">Sign in to start counting</p>
+        <p className="text-gray-900 mb-8 font-medium">Sign in to start counting</p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-slate-700 font-semibold mb-2">Username</label>
+            <label className="block text-black font-semibold mb-2">Username</label>
             <input
               type="text"
               value={username}
@@ -1576,7 +1576,7 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
           </div>
 
           <div className="mb-6">
-            <label className="block text-slate-700 font-semibold mb-2">Password</label>
+            <label className="block text-black font-semibold mb-2">Password</label>
             <input
               type="password"
               value={password}
@@ -1598,7 +1598,7 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
           <button
             type="button"
             onClick={handleViewData}
-            className="w-full mt-3 bg-slate-100 text-slate-700 py-3 rounded-lg hover:bg-slate-200 font-semibold transition-all border-2 border-slate-300"
+            className="w-full mt-3 bg-slate-100 text-black py-3 rounded-lg hover:bg-slate-200 font-semibold transition-all border-2 border-slate-300"
           >
             📊 View Saved Data
           </button>
@@ -1668,16 +1668,16 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <button
             onClick={() => setMode('menu')}
-            className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
+            className="mb-4 flex items-center gap-2 text-gray-900 hover:text-black"
           >
             <ArrowLeft size={20} /> Back
           </button>
 
-          <h2 className="text-2xl font-bold text-slate-800 mb-6">Create New Stocktake</h2>
+          <h2 className="text-2xl font-bold text-black mb-6">Create New Stocktake</h2>
 
           <form onSubmit={handleCreate}>
             <div className="mb-6">
-              <label className="block text-slate-700 font-medium mb-2">Stocktake Name</label>
+              <label className="block text-black font-medium mb-2">Stocktake Name</label>
               <input
                 type="text"
                 value={stocktakeName}
@@ -1712,21 +1712,21 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
                 setMode('menu');
                 setSelectedStocktake(null);
               }}
-              className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
+              className="mb-4 flex items-center gap-2 text-gray-900 hover:text-black"
             >
               <ArrowLeft size={20} /> Back
             </button>
 
-            <h2 className="text-2xl font-bold text-slate-800 mb-6">Select Stocktake</h2>
+            <h2 className="text-2xl font-bold text-black mb-6">Select Stocktake</h2>
 
             {loading ? (
-              <p className="text-center text-slate-600">Loading stocktakes...</p>
+              <p className="text-center text-gray-900">Loading stocktakes...</p>
             ) : availableStocktakes.length === 0 ? (
-              <p className="text-center text-slate-600">No stocktakes found</p>
+              <p className="text-center text-gray-900">No stocktakes found</p>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-slate-700 mb-2">Available Stocktakes</h3>
+                  <h3 className="font-semibold text-black mb-2">Available Stocktakes</h3>
                   {availableStocktakes.map((stocktake: any) => (
                     <div
                       key={stocktake.id}
@@ -1737,7 +1737,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
                           : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                       }`}
                     >
-                      <div className="font-semibold text-slate-800">{stocktake.name}</div>
+                      <div className="font-semibold text-black">{stocktake.name}</div>
                       <div className="text-sm text-slate-500 mt-1">
                         Created: {stocktake.createdDate}
                       </div>
@@ -1791,8 +1791,8 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Settings</h2>
-            <p className="text-slate-600">Hello, {user.username}!</p>
+            <h2 className="text-2xl font-bold text-black">Settings</h2>
+            <p className="text-gray-900">Hello, {user.username}!</p>
           </div>
           <button
             onClick={onLogout}
@@ -1805,7 +1805,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
         {currentStocktake && onBack && (
           <button
             onClick={onBack}
-            className="mb-4 flex items-center gap-2 text-slate-600 hover:text-slate-800"
+            className="mb-4 flex items-center gap-2 text-gray-900 hover:text-black"
           >
             <ArrowLeft size={20} /> Back to Scanning
           </button>
