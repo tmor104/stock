@@ -895,14 +895,14 @@ export default function StockCounter() {
   // RENDER: SCAN MODE
   // ============================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-6 mb-6 border border-blue-300">
+        <div className="bg-white border-t-4 border-blue-500 rounded-2xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6 border border-blue-300">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-white drop-shadow-lg">📦 Stock Wizard</h1>
-              <p className="text-sm text-blue-100">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">📦 Stock Wizard</h1>
+              <p className="text-sm text-gray-600">
                 {user.username} • {currentStocktake?.name}
               </p>
             </div>
@@ -1022,7 +1022,7 @@ export default function StockCounter() {
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={() => setCurrentMode('search')}
-                className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-3 py-2 rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
+                className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
               >
                 <Search size={16} /> Search Product
               </button>
@@ -1075,7 +1075,7 @@ export default function StockCounter() {
                         const current = parseFloat(quantityInput) || 0;
                         setQuantityInput((current + amount).toString());
                       }}
-                      className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-md transform hover:scale-105 text-sm"
+                      className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-md transform hover:scale-105 text-sm"
                     >
                       +{amount}
                     </button>
@@ -1095,7 +1095,7 @@ export default function StockCounter() {
                     setCurrentProduct(null);
                     setQuantityInput('');
                   }}
-                  className="bg-gradient-to-r from-slate-400 to-slate-500 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
+                  className="bg-gray-400 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Cancel
                 </button>
@@ -1132,7 +1132,7 @@ export default function StockCounter() {
             />
 
             {searchQuery.trim() && searchResults.length === 0 && (
-              <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+              <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
                 <p className="text-purple-800 font-semibold mb-3">✍️ Product not found in database</p>
                 <p className="text-purple-700 text-sm mb-4">Create a manual entry for: "{searchQuery}"</p>
                 <button
@@ -1147,7 +1147,7 @@ export default function StockCounter() {
                     setCurrentMode('scan');
                     setTimeout(() => quantityInputRef.current?.focus(), 100);
                   }}
-                  className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 font-semibold transition-all shadow-md"
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 font-semibold transition-all shadow-md"
                 >
                   ✍️ Create Manual Entry
                 </button>
@@ -1198,13 +1198,13 @@ export default function StockCounter() {
               <div className="flex gap-3">
                 <button
                   onClick={handleSaveEdit}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-lg transform hover:scale-105"
+                  className="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Save Changes
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="bg-gradient-to-r from-slate-400 to-slate-500 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
+                  className="bg-gray-400 text-white px-6 py-3 rounded-lg hover:from-slate-500 hover:to-slate-600 font-bold transition-all shadow-lg transform hover:scale-105"
                 >
                   Cancel
                 </button>
@@ -1275,7 +1275,7 @@ export default function StockCounter() {
               <button
                 onClick={syncManualEntries}
                 disabled={!isOnline || isSyncing}
-                className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
                 Sync Manual Entries
@@ -1285,7 +1285,7 @@ export default function StockCounter() {
               {manualCounts.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 bg-blue-50"
                 >
                   <div className="flex-1">
                     <div className="font-semibold text-slate-800">✍️ {item.product}</div>
@@ -1321,7 +1321,7 @@ export default function StockCounter() {
               <button
                 onClick={syncKegs}
                 disabled={!isOnline || isSyncing || kegsList.every((k: any) => k.count === 0)}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
                 Sync Kegs
@@ -1333,14 +1333,14 @@ export default function StockCounter() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-orange-100 border-b-2 border-orange-300">
-                      <th className="text-left p-3 font-bold text-orange-900">Keg Name</th>
-                      <th className="text-center p-3 font-bold text-orange-900">Count</th>
+                    <tr className="bg-blue-100 border-b-2 border-blue-300">
+                      <th className="text-left p-3 font-bold text-blue-900">Keg Name</th>
+                      <th className="text-center p-3 font-bold text-blue-900">Count</th>
                     </tr>
                   </thead>
                   <tbody>
                     {kegsList.map((keg, idx) => (
-                      <tr key={idx} className="border-b border-slate-200 hover:bg-orange-50">
+                      <tr key={idx} className="border-b border-slate-200 hover:bg-blue-50">
                         <td className="p-3 font-semibold text-slate-800">{keg.name}</td>
                         <td className="p-3 text-center">
                           <input
@@ -1354,7 +1354,7 @@ export default function StockCounter() {
                                 )
                               );
                             }}
-                            className="w-24 px-3 py-2 text-center border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
+                            className="w-24 px-3 py-2 text-center border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
                             min="0"
                           />
                         </td>
@@ -1438,7 +1438,7 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
 
   if (viewingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-600 p-3 sm:p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-2xl p-8">
             <div className="flex justify-between items-center mb-6">
@@ -1557,9 +1557,9 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center p-3 sm:p-4 md:p-6">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform hover:scale-105 transition-transform">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-700 bg-clip-text text-transparent mb-2">📦 Stock Wizard</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold bg-blue-500 hover:bg-blue-600 bg-clip-text text-transparent mb-2">📦 Stock Wizard</h1>
         <p className="text-slate-600 mb-8 font-medium">Sign in to start counting</p>
 
         <form onSubmit={handleSubmit}>
@@ -1590,7 +1590,7 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-700 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-800 font-bold transition-all shadow-lg transform hover:scale-105 disabled:opacity-50"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg hover:from-blue-700 hover:to-purple-800 font-bold transition-all shadow-lg transform hover:scale-105 disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
@@ -1664,7 +1664,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
   if (mode === 'create') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 flex items-center justify-center">
+      <div className="min-h-screen bg-white p-4 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <button
             onClick={() => setMode('menu')}
@@ -1704,7 +1704,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
   if (mode === 'select') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <button
@@ -1771,7 +1771,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
                     </div>
                     <button
                       onClick={() => onSelectStocktake(selectedStocktake)}
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg transform hover:scale-105"
+                      className="w-full bg-gradient-to-r bg-blue-600 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg transform hover:scale-105"
                     >
                       📦 Continue with this Stocktake
                     </button>
@@ -1787,7 +1787,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
   // Main menu
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 flex items-center justify-center">
+    <div className="min-h-screen bg-white p-4 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="flex justify-between items-start mb-8">
           <div>
@@ -1828,7 +1828,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
           <button
             onClick={() => setMode('select')}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:scale-105"
+            className="w-full bg-gradient-to-r bg-blue-600 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg flex items-center justify-center gap-2 transform hover:scale-105"
           >
             <Search size={20} /> Continue Existing Stocktake
           </button>
