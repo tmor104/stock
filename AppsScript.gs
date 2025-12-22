@@ -398,7 +398,7 @@ function handleSyncKegs(request) {
 
   // Update Tally sheet
   const tallySheet = ss.getSheetByName('Tally');
-  updateTallySheet(tallySheet, rawScansSheet);
+  updateTally(tallySheet, rawScansSheet);
 
   return createResponse(true, 'Kegs synced successfully', { syncedCount: kegs.length });
 }
