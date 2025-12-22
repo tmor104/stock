@@ -459,25 +459,11 @@ function createResponse(success, message, data = {}) {
     ...data
   };
 
-  const output = ContentService.createTextOutput(JSON.stringify(response));
-  output.setMimeType(ContentService.MimeType.JSON);
-
-  // *** CRITICAL CORS HEADERS ***
-  // These headers tell the browser it's OK for ANY domain to access this script
-
-  // Allow ANY domain to access this API
-  output.setHeader('Access-Control-Allow-Origin', '*');
-
-  // Allow these HTTP methods
-  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-
-  // Allow these headers in requests
-  output.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  // Cache preflight requests for 1 hour
-  output.setHeader('Access-Control-Max-Age', '3600');
-
-  return output;
+  // Return JSON response
+  // Note: CORS headers are added by the Cloudflare Worker proxy
+  // Apps Script's ContentService does not support custom headers
+  return ContentService.createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================
