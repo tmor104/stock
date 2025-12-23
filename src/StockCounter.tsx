@@ -264,8 +264,8 @@ export default function StockCounter() {
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [kegsList, setKegsList] = useState<any[]>([]);
 
-  // Scan Mode
-  const [scanType, setScanType] = useState('regular'); // regular, manual, kegs
+  // Scan Mode - Changed to 4 tabs: tally, raw, manual, kegs
+  const [activeTab, setActiveTab] = useState('tally'); // tally, raw, manual, kegs
   const [currentMode, setCurrentMode] = useState('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
@@ -301,12 +301,12 @@ export default function StockCounter() {
     };
   }, []);
 
-  // Load kegs when switching to kegs mode
+  // Load kegs when switching to kegs tab
   useEffect(() => {
-    if (scanType === 'kegs' && kegsList.length === 0) {
+    if (activeTab === 'kegs' && kegsList.length === 0) {
       loadKegs();
     }
-  }, [scanType]);
+  }, [activeTab]);
 
   const loadKegs = async () => {
     try {
@@ -761,10 +761,8 @@ export default function StockCounter() {
       if (result.success) {
         setSyncStatus(`Synced ${result.syncedCount} kegs!`);
 
-        // Reset keg counts after successful sync
-        setKegsList((prev: any[]) =>
-          prev.map((keg: any) => ({ ...keg, count: 0 }))
-        );
+        // Keep keg counts after sync (don't reset)
+        // Counts remain visible so users can see what was synced
 
         setTimeout(() => setSyncStatus(''), 3000);
         alert(`Successfully synced ${result.syncedCount} kegs to spreadsheet!`);
@@ -909,7 +907,7 @@ export default function StockCounter() {
             <div className="flex gap-2">
               <button
                 onClick={() => setAppMode('settings')}
-                className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-lg hover:bg-white/30 transition-all shadow-lg"
+                className="bg-gray-100 text-gray-700 p-2 rounded-lg hover:bg-gray-200 transition-all shadow-lg"
                 title="Settings"
               >
                 <Settings size={20} />
@@ -924,29 +922,49 @@ export default function StockCounter() {
             </div>
           </div>
 
-          {/* Scan Type Selector */}
+          {/* Tab Selector - 4 tabs */}
           <div className="mb-4">
-            <label className="text-sm font-medium text-white mb-2 block">Scan Type</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-sm font-medium text-black mb-2 block">View</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
-                onClick={() => setScanType('regular')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
-                  scanType === 'regular'
-                    ? 'bg-white text-blue-600 shadow-lg'
-                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
+                onClick={() => setActiveTab('tally')}
+                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  activeTab === 'tally'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                📦 Regular Scans
+                📊 Tally
               </button>
               <button
-                onClick={() => setScanType('kegs')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
-                  scanType === 'kegs'
-                    ? 'bg-white text-orange-600 shadow-lg'
-                    : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
+                onClick={() => setActiveTab('raw')}
+                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  activeTab === 'raw'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                🍺 Keg Counting
+                📦 Raw Scans
+              </button>
+              <button
+                onClick={() => setActiveTab('manual')}
+                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  activeTab === 'manual'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                ✏️ Manual
+              </button>
+              <button
+                onClick={() => setActiveTab('kegs')}
+                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
+                  activeTab === 'kegs'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                🍺 Kegs
               </button>
             </div>
           </div>
@@ -954,11 +972,11 @@ export default function StockCounter() {
           {/* Location & Sync Status */}
           <div className="flex gap-4 items-center">
             <div className="flex-1">
-              <label className="text-sm font-medium text-white mb-1 block">Current Location</label>
+              <label className="text-sm font-medium text-black mb-1 block">Current Location</label>
               <select
                 value={currentLocation}
                 onChange={(e) => handleChangeLocation(e.target.value)}
-                className="w-full px-3 py-2 bg-white/20 backdrop-blur-sm border-2 border-white/30 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                className="w-full px-3 py-2 bg-white/20 backdrop-blur-sm border-2 border-gray-300 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {locations.map(loc => (
                   <option key={loc} value={loc} className="text-black">{loc}</option>
@@ -968,7 +986,7 @@ export default function StockCounter() {
 
             <div className="flex items-center gap-3">
               {!isOnline && (
-                <div className="flex items-center gap-1 text-orange-300">
+                <div className="flex items-center gap-1 text-orange-600">
                   <WifiOff size={18} />
                   <span className="text-sm font-medium">Offline</span>
                 </div>
@@ -976,7 +994,7 @@ export default function StockCounter() {
 
               {unsyncedCount > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-yellow-200">
+                  <span className="text-sm font-medium text-yellow-700 font-semibold">
                     {unsyncedCount} unsynced
                   </span>
                   <button
@@ -1213,11 +1231,52 @@ export default function StockCounter() {
           </div>
         )}
 
-        {/* Scanned Items List - Regular Scans */}
-        {scanType === 'regular' && scannedItems.length > 0 && (
+        {/* Tally View - Accumulated Totals by Barcode */}
+        {activeTab === 'tally' && scannedItems.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
             <h2 className="text-xl font-semibold text-black mb-4">
-              📦 Regular Scans ({scannedItems.length})
+              📊 Tally - Accumulated Totals
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-blue-100 border-b-2 border-blue-300">
+                    <th className="text-left p-3 font-bold text-blue-900">Barcode</th>
+                    <th className="text-left p-3 font-bold text-blue-900">Product</th>
+                    <th className="text-right p-3 font-bold text-blue-900">Total Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(
+                    scannedItems.reduce((acc: any, item: any) => {
+                      if (!acc[item.barcode]) {
+                        acc[item.barcode] = {
+                          barcode: item.barcode,
+                          product: item.product,
+                          totalQty: 0
+                        };
+                      }
+                      acc[item.barcode].totalQty += item.quantity;
+                      return acc;
+                    }, {})
+                  ).map(([barcode, data]: [string, any]) => (
+                    <tr key={barcode} className="border-b border-slate-200 hover:bg-blue-50">
+                      <td className="p-3 text-black font-mono">{data.barcode}</td>
+                      <td className="p-3 text-black font-semibold">{data.product}</td>
+                      <td className="p-3 text-right text-black font-bold text-lg">{data.totalQty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Raw Scans List - Individual Scan Entries */}
+        {activeTab === 'raw' && scannedItems.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
+            <h2 className="text-xl font-semibold text-black mb-4">
+              📦 Raw Scans ({scannedItems.length})
               {unsyncedCount > 0 && (
                 <span className="text-sm text-yellow-700 ml-2">
                   ({unsyncedCount} unsynced)
@@ -1263,7 +1322,7 @@ export default function StockCounter() {
         )}
 
         {/* Manual Entries List */}
-        {scanType === 'regular' && manualCounts.length > 0 && (
+        {activeTab === 'manual' && manualCounts.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-black">
@@ -1312,7 +1371,7 @@ export default function StockCounter() {
         )}
 
         {/* Keg Counting Table */}
-        {scanType === 'kegs' && (
+        {activeTab === 'kegs' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-black">
@@ -1345,16 +1404,17 @@ export default function StockCounter() {
                         <td className="p-3 text-center">
                           <input
                             type="number"
+                            step="0.1"
                             value={keg.count}
                             onChange={(e) => {
-                              const newCount = parseInt(e.target.value) || 0;
+                              const newCount = parseFloat(e.target.value) || 0;
                               setKegsList((prev: any[]) =>
                                 prev.map((k: any, i: number) =>
                                   i === idx ? { ...k, count: newCount } : k
                                 )
                               );
                             }}
-                            className="w-24 px-3 py-2 text-center border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
+                            className="w-24 px-3 py-2 text-center border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg"
                             min="0"
                           />
                         </td>
