@@ -1180,6 +1180,52 @@ export default function StockCounter() {
           </div>
         )}
 
+        {/* Scanner History - Only on Scanner Tab */}
+        {activeTab === 'scanner' && scannedItems.filter((item: any) => item.barcode && item.barcode !== '').length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
+            <h2 className="text-xl font-semibold text-black mb-4">
+              📦 Scanner History ({scannedItems.filter((item: any) => item.barcode && item.barcode !== '').length})
+            </h2>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {scannedItems
+                .filter((item: any) => item.barcode && item.barcode !== '')
+                .map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${getSyncStatusColor(item)}`}
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold text-black">{item.product}</div>
+                      <div className="text-sm text-slate-500">
+                        Barcode: {item.barcode} • Qty: {item.quantity} • {item.location}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {new Date(item.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getSyncStatusIcon(item)}
+                      <button
+                        onClick={() => handleEditScan(item)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit scan"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteScan(item)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete scan"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* Edit Scan Modal */}
         {editingScan && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -1309,6 +1355,136 @@ export default function StockCounter() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Manual Entry Interface - Only on Manual Tab */}
+        {activeTab === 'manual' && (
+          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
+            <h2 className="text-xl font-semibold text-black mb-4">✍️ Add Manual Entry</h2>
+
+            {!currentProduct ? (
+              <>
+                <label className="block text-lg font-semibold text-black mb-3">Search or Enter Product</label>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    handleSearch(e.target.value);
+                  }}
+                  placeholder="Search product name or barcode..."
+                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all mb-3"
+                />
+
+                {searchQuery.trim() && searchResults.length === 0 && (
+                  <div className="mt-4 p-4 bg-purple-50 border-2 border-purple-200 rounded-lg">
+                    <p className="text-purple-800 font-semibold mb-3">✍️ Product not found in database</p>
+                    <p className="text-purple-700 text-sm mb-4">Create a manual entry for: "{searchQuery}"</p>
+                    <button
+                      onClick={() => {
+                        setCurrentProduct({
+                          product: searchQuery,
+                          barcode: '',
+                          currentStock: 0,
+                          value: 0,
+                          isManualEntry: true
+                        });
+                        setTimeout(() => quantityInputRef.current?.focus(), 100);
+                      }}
+                      className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 font-semibold transition-all shadow-md"
+                    >
+                      ✍️ Create Manual Entry
+                    </button>
+                  </div>
+                )}
+
+                {searchResults.length > 0 && (
+                  <div className="mt-4 max-h-96 overflow-y-auto">
+                    <p className="text-sm text-gray-700 mb-2 font-medium">Select a product:</p>
+                    {searchResults.map((product, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          // If product has no barcode, mark as manual entry
+                          const productWithFlag = {
+                            ...product,
+                            isManualEntry: !product.barcode || product.barcode === ''
+                          };
+                          setCurrentProduct(productWithFlag);
+                          setSearchQuery('');
+                          setSearchResults([]);
+                          setTimeout(() => quantityInputRef.current?.focus(), 100);
+                        }}
+                        className="p-3 hover:bg-slate-50 cursor-pointer border-b last:border-b-0 transition-colors rounded-lg"
+                      >
+                        <div className="font-semibold text-black">{product.product}</div>
+                        <div className="text-sm text-slate-500">
+                          {product.barcode ? `Barcode: ${product.barcode}` : 'No barcode'} • Stock: {product.currentStock}
+                          {!product.barcode && <span className="text-purple-600 ml-2">→ Manual Entry</span>}
+                          {product.barcode && <span className="text-blue-600 ml-2">→ Scanner Record</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <div className="mb-4">
+                  <div className="text-lg font-semibold text-black">{currentProduct.product}</div>
+                  {currentProduct.barcode && (
+                    <>
+                      <div className="text-sm text-slate-500">Barcode: {currentProduct.barcode}</div>
+                      <div className="text-sm text-gray-900">Current Stock: {currentProduct.currentStock} • Value: ${currentProduct.value}</div>
+                      <div className="text-xs text-blue-600 mt-1">✓ This item will be saved to Scanner records</div>
+                    </>
+                  )}
+                  {!currentProduct.barcode && (
+                    <div className="text-xs text-purple-600 mt-1">✓ This item will be saved as Manual Entry</div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-black mb-2">Enter Quantity (up to 2 decimal places)</label>
+                  <input
+                    ref={quantityInputRef}
+                    type="number"
+                    step="0.01"
+                    value={quantityInput}
+                    onChange={(e) => setQuantityInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleQuantitySubmit(e);
+                      }
+                    }}
+                    placeholder="Enter quantity..."
+                    className="w-full px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3 transition-all"
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleQuantitySubmit}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 font-bold transition-all shadow-lg transform hover:scale-105"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentProduct(null);
+                        setQuantityInput('');
+                        setSearchQuery('');
+                        setSearchResults([]);
+                      }}
+                      className="bg-gray-400 text-white px-6 py-3 rounded-lg hover:bg-gray-500 font-bold transition-all shadow-lg transform hover:scale-105"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1771,7 +1947,10 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
             <h2 className="text-2xl font-bold text-black mb-6">Select Stocktake</h2>
 
             {loading ? (
-              <p className="text-center text-gray-900">Loading stocktakes...</p>
+              <div className="bg-gray-100 border-2 border-gray-300 rounded-lg p-12 text-center">
+                <RefreshCw size={48} className="animate-spin text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 font-semibold text-lg">Loading stocktakes...</p>
+              </div>
             ) : availableStocktakes.length === 0 ? (
               <p className="text-center text-gray-900">No stocktakes found</p>
             ) : (
