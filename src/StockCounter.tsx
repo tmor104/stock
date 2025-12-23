@@ -264,8 +264,8 @@ export default function StockCounter() {
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [kegsList, setKegsList] = useState<any[]>([]);
 
-  // Scan Mode - Changed to 4 tabs: tally, raw, manual, kegs
-  const [activeTab, setActiveTab] = useState('tally'); // tally, raw, manual, kegs
+  // Scan Mode - 3 tabs: scanner, manual, kegs
+  const [activeTab, setActiveTab] = useState('scanner'); // scanner, manual, kegs
   const [currentMode, setCurrentMode] = useState('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
@@ -922,29 +922,19 @@ export default function StockCounter() {
             </div>
           </div>
 
-          {/* Tab Selector - 4 tabs */}
+          {/* Tab Selector - 3 tabs */}
           <div className="mb-4">
             <label className="text-sm font-medium text-black mb-2 block">View</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
-                onClick={() => setActiveTab('tally')}
+                onClick={() => setActiveTab('scanner')}
                 className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
-                  activeTab === 'tally'
+                  activeTab === 'scanner'
                     ? 'bg-blue-500 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                📊 Tally
-              </button>
-              <button
-                onClick={() => setActiveTab('raw')}
-                className={`px-3 py-2 rounded-lg font-semibold text-sm transition-all ${
-                  activeTab === 'raw'
-                    ? 'bg-blue-500 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                📦 Raw Scans
+                📦 Scanner
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
@@ -976,7 +966,7 @@ export default function StockCounter() {
               <select
                 value={currentLocation}
                 onChange={(e) => handleChangeLocation(e.target.value)}
-                className="w-full px-3 py-2 bg-white/20 backdrop-blur-sm border-2 border-gray-300 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-white border-2 border-gray-300 text-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {locations.map(loc => (
                   <option key={loc} value={loc} className="text-black">{loc}</option>
@@ -1003,7 +993,7 @@ export default function StockCounter() {
                     className="bg-white/90 text-blue-600 px-3 py-2 rounded-lg hover:bg-white disabled:bg-white/30 transition-all shadow-lg font-semibold flex items-center gap-1"
                   >
                     <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                    Sync
+                    {isSyncing ? 'Syncing...' : 'Sync'}
                   </button>
                 </div>
               )}
@@ -1015,8 +1005,8 @@ export default function StockCounter() {
           </div>
         </div>
 
-        {/* Scan Interface */}
-        {currentMode === 'scan' && !currentProduct && (
+        {/* Scan Interface - Only on Scanner Tab */}
+        {activeTab === 'scanner' && currentMode === 'scan' && !currentProduct && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
             <label className="block text-lg font-semibold text-black mb-3 flex items-center gap-2">
               <Scan size={24} className="text-gray-900" /> Scan Barcode
@@ -1049,14 +1039,15 @@ export default function StockCounter() {
                 disabled={!isOnline || isSyncing || unsyncedCount === 0}
                 className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-2 rounded-lg hover:from-emerald-600 hover:to-green-700 disabled:bg-slate-300 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
               >
-                <RefreshCw size={16} /> Manual Sync
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? 'Syncing...' : 'Manual Sync'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Product Confirmation */}
-        {currentProduct && currentMode === 'scan' && (
+        {/* Product Confirmation - Only on Scanner Tab */}
+        {activeTab === 'scanner' && currentProduct && currentMode === 'scan' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
             <div className="mb-4">
               <div className="text-lg font-semibold text-black">{currentProduct.product}</div>
@@ -1122,8 +1113,8 @@ export default function StockCounter() {
           </div>
         )}
 
-        {/* Search Mode */}
-        {currentMode === 'search' && (
+        {/* Search Mode - Only on Scanner Tab */}
+        {activeTab === 'scanner' && currentMode === 'search' && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
             <button
               onClick={() => {
@@ -1337,7 +1328,7 @@ export default function StockCounter() {
                 className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                Sync Manual Entries
+                {isSyncing ? 'Syncing...' : 'Sync Manual Entries'}
               </button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -1383,7 +1374,7 @@ export default function StockCounter() {
                 className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                Sync Kegs
+                {isSyncing ? 'Syncing...' : 'Sync Kegs'}
               </button>
             </div>
             {kegsList.length === 0 ? (
