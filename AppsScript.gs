@@ -33,6 +33,8 @@ function doPost(e) {
         return handleSyncScans(request);
       case 'syncKegs':
         return handleSyncKegs(request);
+      case 'syncManualEntries':
+        return handleSyncManualEntries(request);
       case 'loadUserScans':
         return handleLoadUserScans(request);
       default:
@@ -181,6 +183,20 @@ function handleCreateStocktake(request) {
   ]]);
   rawScansSheet.getRange('A1:J1').setFontWeight('bold').setBackground('#2D3748').setFontColor('#FFFFFF');
 
+  // Create Manual sheet
+  const manualSheet = newSheet.insertSheet('Manual');
+  manualSheet.getRange('A1:H1').setValues([[
+    'Product', 'Quantity', 'Location', 'User', 'Timestamp', 'Stock Level', '$ Value', 'Sync ID'
+  ]]);
+  manualSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#6B46C1').setFontColor('#FFFFFF');
+
+  // Create Kegs sheet
+  const kegsSheet = newSheet.insertSheet('Kegs');
+  kegsSheet.getRange('A1:G1').setValues([[
+    'Keg Product', 'Count', 'Location', 'User', 'Timestamp', 'Synced', 'Sync ID'
+  ]]);
+  kegsSheet.getRange('A1:G1').setFontWeight('bold').setBackground('#D97706').setFontColor('#FFFFFF');
+
   // Store metadata as sheet property
   const sheetProps = PropertiesService.getDocumentProperties();
   sheetProps.setProperty('stocktake_name', name);
@@ -296,7 +312,9 @@ function handleSyncScans(request) {
   }
 
   // Update Tally sheet
-  updateTally(tallySheet, rawScansSheet);
+  const manualSheet = ss.getSheetByName('Manual');
+  const kegsSheet = ss.getSheetByName('Kegs');
+  updateTally(tallySheet, rawScansSheet, manualSheet, kegsSheet);
 
   return createResponse(true, 'Scans synced successfully', {
     syncedCount: scans.length,
@@ -306,36 +324,92 @@ function handleSyncScans(request) {
   });
 }
 
-function updateTally(tallySheet, rawScansSheet) {
-  // Get all raw scans (excluding header)
-  const lastRow = rawScansSheet.getLastRow();
-  if (lastRow < 2) return;
-
-  const rawData = rawScansSheet.getRange('A2:H' + lastRow).getValues();
-
-  // Aggregate by barcode
+function updateTally(tallySheet, rawScansSheet, manualSheet, kegsSheet) {
   const tally = {};
-  rawData.forEach(row => {
-    const barcode = row[0].toString();
-    const product = row[1];
-    const quantity = parseFloat(row[2]) || 0;
-    const location = row[3];
-    const stockLevel = row[6];
 
-    if (!tally[barcode]) {
-      tally[barcode] = {
-        product,
-        totalQty: 0,
-        locations: new Set(),
-        stockLevel,
-        lastUpdated: new Date()
-      };
+  // Process Raw Scans (barcode scans)
+  const rawLastRow = rawScansSheet.getLastRow();
+  if (rawLastRow >= 2) {
+    const rawData = rawScansSheet.getRange('A2:H' + rawLastRow).getValues();
+    rawData.forEach(row => {
+      const barcode = row[0].toString();
+      const product = row[1];
+      const quantity = parseFloat(row[2]) || 0;
+      const location = row[3];
+      const stockLevel = row[6];
+
+      if (!tally[barcode]) {
+        tally[barcode] = {
+          product,
+          totalQty: 0,
+          locations: new Set(),
+          stockLevel,
+          lastUpdated: new Date()
+        };
+      }
+
+      tally[barcode].totalQty += quantity;
+      tally[barcode].locations.add(location);
+      tally[barcode].lastUpdated = new Date();
+    });
+  }
+
+  // Process Manual Entries (no barcode, use product name as key)
+  if (manualSheet) {
+    const manualLastRow = manualSheet.getLastRow();
+    if (manualLastRow >= 2) {
+      const manualData = manualSheet.getRange('A2:G' + manualLastRow).getValues();
+      manualData.forEach(row => {
+        const product = row[0]; // Product name
+        const quantity = parseFloat(row[1]) || 0;
+        const location = row[2];
+        const stockLevel = row[5] || 0;
+        const key = 'MANUAL:' + product; // Use MANUAL: prefix to distinguish from barcode
+
+        if (!tally[key]) {
+          tally[key] = {
+            product,
+            totalQty: 0,
+            locations: new Set(),
+            stockLevel,
+            lastUpdated: new Date()
+          };
+        }
+
+        tally[key].totalQty += quantity;
+        tally[key].locations.add(location);
+        tally[key].lastUpdated = new Date();
+      });
     }
+  }
 
-    tally[barcode].totalQty += quantity;
-    tally[barcode].locations.add(location);
-    tally[barcode].lastUpdated = new Date();
-  });
+  // Process Kegs (use KEG: prefix)
+  if (kegsSheet) {
+    const kegsLastRow = kegsSheet.getLastRow();
+    if (kegsLastRow >= 2) {
+      const kegsData = kegsSheet.getRange('A2:C' + kegsLastRow).getValues();
+      kegsData.forEach(row => {
+        const kegProduct = row[0];
+        const count = parseFloat(row[1]) || 0;
+        const location = row[2];
+        const key = 'KEG:' + kegProduct;
+
+        if (!tally[key]) {
+          tally[key] = {
+            product: kegProduct,
+            totalQty: 0,
+            locations: new Set(),
+            stockLevel: 0,
+            lastUpdated: new Date()
+          };
+        }
+
+        tally[key].totalQty += count;
+        tally[key].locations.add(location);
+        tally[key].lastUpdated = new Date();
+      });
+    }
+  }
 
   // Clear existing tally (keep header)
   if (tallySheet.getLastRow() > 1) {
@@ -343,13 +417,13 @@ function updateTally(tallySheet, rawScansSheet) {
   }
 
   // Write updated tally
-  const tallyRows = Object.keys(tally).map(barcode => [
-    barcode,
-    tally[barcode].product,
-    tally[barcode].totalQty,
-    Array.from(tally[barcode].locations).join(', '),
-    Utilities.formatDate(tally[barcode].lastUpdated, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
-    tally[barcode].stockLevel
+  const tallyRows = Object.keys(tally).map(key => [
+    key.startsWith('MANUAL:') || key.startsWith('KEG:') ? '' : key, // Barcode (empty for manual/kegs)
+    tally[key].product,
+    tally[key].totalQty,
+    Array.from(tally[key].locations).join(', '),
+    Utilities.formatDate(tally[key].lastUpdated, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
+    tally[key].stockLevel
   ]);
 
   if (tallyRows.length > 0) {
@@ -369,38 +443,91 @@ function handleSyncKegs(request) {
   }
 
   const ss = SpreadsheetApp.openById(stocktakeId);
-  const rawScansSheet = ss.getSheetByName('Raw Scans');
+  const kegsSheet = ss.getSheetByName('Kegs');
 
-  // Add kegs to Raw Scans sheet
+  if (!kegsSheet) {
+    return createResponse(false, 'Kegs sheet not found in stocktake');
+  }
+
+  // Add kegs to Kegs sheet
   const kegRows = kegs.map(function(keg) {
     const timestamp = new Date().toLocaleString();
     const syncId = 'KEG_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
     return [
-      'KEG',                    // Barcode
-      keg.name,                 // Product
-      keg.count,                // Quantity
+      keg.name,                 // Keg Product
+      keg.count,                // Count
       location || '',           // Location
       user || '',               // User
       timestamp,                // Timestamp
-      0,                        // Stock Level (placeholder)
-      0,                        // $ Value (placeholder)
       true,                     // Synced
       syncId                    // Sync ID
     ];
   });
 
-  // Append to Raw Scans sheet
+  // Append to Kegs sheet
   if (kegRows.length > 0) {
-    const lastRow = rawScansSheet.getLastRow();
-    rawScansSheet.getRange(lastRow + 1, 1, kegRows.length, 10).setValues(kegRows);
+    const lastRow = kegsSheet.getLastRow();
+    kegsSheet.getRange(lastRow + 1, 1, kegRows.length, 7).setValues(kegRows);
   }
 
   // Update Tally sheet
   const tallySheet = ss.getSheetByName('Tally');
-  updateTally(tallySheet, rawScansSheet);
+  const rawScansSheet = ss.getSheetByName('Raw Scans');
+  const manualSheet = ss.getSheetByName('Manual');
+  updateTally(tallySheet, rawScansSheet, manualSheet, kegsSheet);
 
   return createResponse(true, 'Kegs synced successfully', { syncedCount: kegs.length });
+}
+
+// ============================================
+// SYNC MANUAL ENTRIES
+// ============================================
+
+function handleSyncManualEntries(request) {
+  const { stocktakeId, manualEntries } = request;
+
+  if (!manualEntries || manualEntries.length === 0) {
+    return createResponse(true, 'No manual entries to sync', { syncedCount: 0 });
+  }
+
+  const ss = SpreadsheetApp.openById(stocktakeId);
+  const manualSheet = ss.getSheetByName('Manual');
+
+  if (!manualSheet) {
+    return createResponse(false, 'Manual sheet not found in stocktake');
+  }
+
+  // Add manual entries to Manual sheet
+  const manualRows = manualEntries.map(function(entry) {
+    const timestamp = entry.timestamp || new Date().toLocaleString();
+    const syncId = entry.syncId || 'MANUAL_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+    return [
+      entry.product,           // Product
+      entry.quantity,          // Quantity
+      entry.location || '',    // Location
+      entry.user || '',        // User
+      timestamp,               // Timestamp
+      entry.stockLevel || 0,   // Stock Level
+      entry.value || 0,        // $ Value
+      syncId                   // Sync ID
+    ];
+  });
+
+  // Append to Manual sheet
+  if (manualRows.length > 0) {
+    const lastRow = manualSheet.getLastRow();
+    manualSheet.getRange(lastRow + 1, 1, manualRows.length, 8).setValues(manualRows);
+  }
+
+  // Update Tally sheet
+  const tallySheet = ss.getSheetByName('Tally');
+  const rawScansSheet = ss.getSheetByName('Raw Scans');
+  const kegsSheet = ss.getSheetByName('Kegs');
+  updateTally(tallySheet, rawScansSheet, manualSheet, kegsSheet);
+
+  return createResponse(true, 'Manual entries synced successfully', { syncedCount: manualEntries.length });
 }
 
 // ============================================

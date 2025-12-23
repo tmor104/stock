@@ -1181,14 +1181,14 @@ export default function StockCounter() {
         )}
 
         {/* Scanner History - Only on Scanner Tab */}
-        {activeTab === 'scanner' && scannedItems.filter((item: any) => item.barcode && item.barcode !== '').length > 0 && (
+        {activeTab === 'scanner' && scannedItems.filter((item: any) => item.barcode && item.barcode !== '' && item.stocktakeId === currentStocktake?.id).length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
             <h2 className="text-xl font-semibold text-black mb-4">
-              📦 Scanner History ({scannedItems.filter((item: any) => item.barcode && item.barcode !== '').length})
+              📦 Scanner History ({scannedItems.filter((item: any) => item.barcode && item.barcode !== '' && item.stocktakeId === currentStocktake?.id).length})
             </h2>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {scannedItems
-                .filter((item: any) => item.barcode && item.barcode !== '')
+                .filter((item: any) => item.barcode && item.barcode !== '' && item.stocktakeId === currentStocktake?.id)
                 .map((item, idx) => (
                   <div
                     key={idx}
