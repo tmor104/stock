@@ -284,6 +284,8 @@ export default function StockCounter() {
   // Refs
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const onlineHandlerRef = useRef<() => void>();
+  const offlineHandlerRef = useRef<() => void>();
 
   // ============================================
   // INITIALIZATION
@@ -291,13 +293,20 @@ export default function StockCounter() {
   useEffect(() => {
     initializeApp();
 
-    // Online/offline detection
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
+    // Online/offline detection - store function references for proper cleanup
+    onlineHandlerRef.current = () => setIsOnline(true);
+    offlineHandlerRef.current = () => setIsOnline(false);
+
+    window.addEventListener('online', onlineHandlerRef.current);
+    window.addEventListener('offline', offlineHandlerRef.current);
 
     return () => {
-      window.removeEventListener('online', () => setIsOnline(true));
-      window.removeEventListener('offline', () => setIsOnline(false));
+      if (onlineHandlerRef.current) {
+        window.removeEventListener('online', onlineHandlerRef.current);
+      }
+      if (offlineHandlerRef.current) {
+        window.removeEventListener('offline', offlineHandlerRef.current);
+      }
     };
   }, []);
 
@@ -374,6 +383,16 @@ export default function StockCounter() {
       );
       setScannedItems(sortedScans);
 
+<<<<<<< Updated upstream
+=======
+      // Restore unsynced manual entries to manualCounts state
+      const manualEntries = currentStocktakeScans.filter((scan: any) =>
+        scan.isManualEntry && !scan.synced
+      );
+      setManualCounts(manualEntries);
+
+      // Count unsynced scans for current stocktake only
+>>>>>>> Stashed changes
       const unsynced = await dbService.getUnsyncedScans();
       setUnsyncedCount(unsynced.length);
 
@@ -459,6 +478,11 @@ export default function StockCounter() {
 
   const handleSelectStocktake = async (stocktake: any) => {
     try {
+<<<<<<< Updated upstream
+=======
+      // Keep all scans from all stocktakes in IndexedDB - just switch the active stocktake
+      // Scans are filtered by stocktakeId when displaying in loadSessionData
+>>>>>>> Stashed changes
       setCurrentStocktake(stocktake);
       await dbService.saveState('currentStocktake', stocktake);
 
@@ -588,21 +612,20 @@ export default function StockCounter() {
       source: 'local_scan'
     };
 
+    // Save all scans (both manual and barcode) to IndexedDB
+    await dbService.saveScan(scan);
+
+    // Update UI
     if (isManualEntry) {
-      // Store manual entry separately
+      // Also update manualCounts for sync tracking
       setManualCounts((prev: any[]) => [scan, ...prev]);
-    } else {
-      // Save regular scan to IndexedDB
-      await dbService.saveScan(scan);
+    }
+    setScannedItems((prev: any[]) => [scan, ...prev]);
+    setUnsyncedCount((prev: number) => prev + 1);
 
-      // Update UI
-      setScannedItems((prev: any[]) => [scan, ...prev]);
-      setUnsyncedCount((prev: number) => prev + 1);
-
-      // Auto-sync every 10 scans
-      if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
-        await syncToGoogleSheets();
-      }
+    // Auto-sync every 10 scans
+    if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
+      await syncToGoogleSheets();
     }
 
     // Reset form
@@ -720,12 +743,33 @@ export default function StockCounter() {
           )
         );
 
+<<<<<<< Updated upstream
         setUnsyncedCount(0);
         setSyncStatus(`Synced ${result.syncedCount} scans!`);
         setTimeout(() => setSyncStatus(''), 3000);
       } else {
         setSyncStatus('Sync failed');
         setTimeout(() => setSyncStatus(''), 3000);
+=======
+        if (manualResult.success) {
+          // Mark manual entries as synced in IndexedDB
+          const manualSyncIds = manualCounts.map((m: any) => m.syncId);
+          await dbService.markScansSynced(manualSyncIds);
+
+          // Update UI to show manual entries as synced
+          setScannedItems((prev: any[]) =>
+            prev.map((scan: any) =>
+              manualSyncIds.includes(scan.syncId)
+                ? { ...scan, synced: true }
+                : scan
+            )
+          );
+
+          // Clear manual entries from state after successful sync
+          setManualCounts([]);
+          syncedCount += manualResult.syncedCount;
+        }
+>>>>>>> Stashed changes
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -1408,6 +1452,49 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
     }
   };
 
+  const handleClearStocktake = async (stocktakeId: string, stocktakeName: string, stocktakeUnsynced: number) => {
+    if (stocktakeUnsynced > 0) {
+      if (!confirm(`⚠️ WARNING: "${stocktakeName}" has ${stocktakeUnsynced} unsynced scans!\n\nClearing will DELETE all unsynced data permanently.\n\nAre you sure you want to continue?`)) {
+        return;
+      }
+      if (!confirm(`This action cannot be undone. Clear "${stocktakeName}"?`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Clear all cached data for "${stocktakeName}"?`)) {
+        return;
+      }
+    }
+
+    try {
+      await dbService.init();
+
+      // Delete all scans for this stocktake
+      const allScans = await dbService.getAllScans();
+      const stocktakeScans = allScans.filter((scan: any) => scan.stocktakeId === stocktakeId);
+      for (const scan of stocktakeScans) {
+        await dbService.deleteScan(scan.syncId);
+      }
+
+      // Refresh saved data display
+      const remainingScans = await dbService.getAllScans();
+      setSavedData(remainingScans);
+
+      // Recalculate unsynced count
+      const unsynced = await dbService.getUnsyncedScans();
+      setUnsyncedCount(unsynced.length);
+
+      alert(`✓ Cleared "${stocktakeName}" successfully!`);
+
+      // If no scans left, return to login
+      if (remainingScans.length === 0) {
+        setViewingData(false);
+      }
+    } catch (error) {
+      alert('Failed to clear stocktake data');
+    }
+  };
+
   const handleClearData = async () => {
     if (unsyncedCount > 0) {
       if (!confirm(`⚠️ WARNING: You have ${unsyncedCount} unsynced scans!\n\nClearing cache will DELETE all unsynced data permanently.\n\nAre you sure you want to continue?`)) {
@@ -1494,6 +1581,12 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
                               ⚠️ {stocktakeUnsynced} unsynced
                             </p>
                           )}
+                          <button
+                            onClick={() => handleClearStocktake(stocktakeId, stocktakeName, stocktakeUnsynced)}
+                            className="mt-2 text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 font-semibold transition-colors"
+                          >
+                            Clear This Stocktake
+                          </button>
                         </div>
                       </div>
 

@@ -153,12 +153,40 @@ function handleCreateStocktake(request) {
   ]]);
   rawScansSheet.getRange('A1:J1').setFontWeight('bold').setBackground('#2D3748').setFontColor('#FFFFFF');
 
+<<<<<<< Updated upstream
   // Store metadata as sheet property
   const sheetProps = PropertiesService.getDocumentProperties();
   sheetProps.setProperty('stocktake_name', name);
   sheetProps.setProperty('created_by', user);
   sheetProps.setProperty('created_date', dateStr);
   sheetProps.setProperty('status', 'Active');
+=======
+  // Create Manual sheet
+  const manualSheet = newSheet.insertSheet('Manual');
+  manualSheet.getRange('A1:H1').setValues([[
+    'Product', 'Quantity', 'Location', 'User', 'Timestamp', 'Stock Level', '$ Value', 'Sync ID'
+  ]]);
+  manualSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#6B46C1').setFontColor('#FFFFFF');
+
+  // Create Kegs sheet
+  const kegsSheet = newSheet.insertSheet('Kegs');
+  kegsSheet.getRange('A1:G1').setValues([[
+    'Keg Product', 'Count', 'Location', 'User', 'Timestamp', 'Synced', 'Sync ID'
+  ]]);
+  kegsSheet.getRange('A1:G1').setFontWeight('bold').setBackground('#D97706').setFontColor('#FFFFFF');
+
+  // Create Metadata sheet to store stocktake info
+  const metadataSheet = newSheet.insertSheet('Metadata');
+  metadataSheet.getRange('A1:B1').setValues([['Property', 'Value']]);
+  metadataSheet.getRange('A1:B1').setFontWeight('bold').setBackground('#1F2937').setFontColor('#FFFFFF');
+  metadataSheet.getRange('A2:B5').setValues([
+    ['stocktake_name', name],
+    ['created_by', user],
+    ['created_date', dateStr],
+    ['status', 'Active']
+  ]);
+  metadataSheet.hideSheet();  // Hide metadata sheet from users
+>>>>>>> Stashed changes
 
   return createResponse(true, 'Stocktake created', {
     stocktakeId,
@@ -178,12 +206,27 @@ function handleListStocktakes(request) {
     const file = files.next();
     const ss = SpreadsheetApp.openById(file.getId());
 
-    // Try to get metadata from document properties
-    const props = PropertiesService.getDocumentProperties();
-    const name = props.getProperty('stocktake_name') || file.getName();
-    const createdBy = props.getProperty('created_by') || 'Unknown';
-    const createdDate = props.getProperty('created_date') || 'Unknown';
-    const status = props.getProperty('status') || 'Active';
+    // Try to get metadata from Metadata sheet
+    let name = file.getName();
+    let createdBy = 'Unknown';
+    let createdDate = 'Unknown';
+    let status = 'Active';
+
+    try {
+      const metadataSheet = ss.getSheetByName('Metadata');
+      if (metadataSheet) {
+        const metadataData = metadataSheet.getRange('A2:B5').getValues();
+        metadataData.forEach(row => {
+          if (row[0] === 'stocktake_name') name = row[1] || file.getName();
+          if (row[0] === 'created_by') createdBy = row[1] || 'Unknown';
+          if (row[0] === 'created_date') createdDate = row[1] || 'Unknown';
+          if (row[0] === 'status') status = row[1] || 'Active';
+        });
+      }
+    } catch (e) {
+      // If metadata sheet doesn't exist, use defaults
+      Logger.log('No metadata sheet found for ' + file.getName());
+    }
 
     stocktakes.push({
       id: file.getId(),
