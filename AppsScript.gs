@@ -29,6 +29,8 @@ function doPost(e) {
         return handleListStocktakes(request);
       case 'syncScans':
         return handleSyncScans(request);
+      case 'deleteScans':
+        return handleDeleteScans(request);
       case 'loadUserScans':
         return handleLoadUserScans(request);
       default:
@@ -153,14 +155,6 @@ function handleCreateStocktake(request) {
   ]]);
   rawScansSheet.getRange('A1:J1').setFontWeight('bold').setBackground('#2D3748').setFontColor('#FFFFFF');
 
-<<<<<<< Updated upstream
-  // Store metadata as sheet property
-  const sheetProps = PropertiesService.getDocumentProperties();
-  sheetProps.setProperty('stocktake_name', name);
-  sheetProps.setProperty('created_by', user);
-  sheetProps.setProperty('created_date', dateStr);
-  sheetProps.setProperty('status', 'Active');
-=======
   // Create Manual sheet
   const manualSheet = newSheet.insertSheet('Manual');
   manualSheet.getRange('A1:H1').setValues([[
@@ -175,6 +169,14 @@ function handleCreateStocktake(request) {
   ]]);
   kegsSheet.getRange('A1:G1').setFontWeight('bold').setBackground('#D97706').setFontColor('#FFFFFF');
 
+  // Create Deleted Scans sheet (audit trail)
+  const deletedScansSheet = newSheet.insertSheet('Deleted Scans');
+  deletedScansSheet.getRange('A1:K1').setValues([[
+    'Barcode', 'Product', 'Quantity', 'Location', 'User', 'Timestamp', 'Stock Level', '$ Value', 'Synced', 'Sync ID', 'Deleted At'
+  ]]);
+  deletedScansSheet.getRange('A1:K1').setFontWeight('bold').setBackground('#DC2626').setFontColor('#FFFFFF');
+  deletedScansSheet.hideSheet();  // Hide from normal users
+
   // Create Metadata sheet to store stocktake info
   const metadataSheet = newSheet.insertSheet('Metadata');
   metadataSheet.getRange('A1:B1').setValues([['Property', 'Value']]);
@@ -186,7 +188,6 @@ function handleCreateStocktake(request) {
     ['status', 'Active']
   ]);
   metadataSheet.hideSheet();  // Hide metadata sheet from users
->>>>>>> Stashed changes
 
   return createResponse(true, 'Stocktake created', {
     stocktakeId,
@@ -409,6 +410,67 @@ function handleLoadUserScans(request) {
   return createResponse(true, 'User scans loaded', {
     scans: userScans,
     count: userScans.length
+  });
+}
+
+// ============================================
+// DELETE SCANS (WITH AUDIT TRAIL)
+// ============================================
+
+function handleDeleteScans(request) {
+  const { stocktakeId, syncIds } = request;
+
+  if (!syncIds || syncIds.length === 0) {
+    return createResponse(true, 'No scans to delete', { deletedCount: 0 });
+  }
+
+  const ss = SpreadsheetApp.openById(stocktakeId);
+  const rawScansSheet = ss.getSheetByName('Raw Scans');
+  const deletedScansSheet = ss.getSheetByName('Deleted Scans');
+
+  if (!deletedScansSheet) {
+    return createResponse(false, 'Deleted Scans sheet not found in stocktake');
+  }
+
+  const lastRow = rawScansSheet.getLastRow();
+  if (lastRow < 2) {
+    return createResponse(true, 'No scans found to delete', { deletedCount: 0 });
+  }
+
+  // Get all scan IDs from column J (Sync ID)
+  const allData = rawScansSheet.getRange('A2:J' + lastRow).getValues();
+  const deletedRows = [];
+  const rowsToDelete = [];
+
+  // Find rows that match the syncIds to delete
+  allData.forEach((row, index) => {
+    const scanSyncId = row[9]; // Column J (10th column, index 9)
+    if (syncIds.includes(scanSyncId)) {
+      // Add deletion timestamp to the row
+      const deletedRow = [...row, new Date().toISOString()];
+      deletedRows.push(deletedRow);
+      rowsToDelete.push(index + 2); // +2 because array is 0-indexed and data starts at row 2
+    }
+  });
+
+  // Copy deleted rows to Deleted Scans sheet (audit trail)
+  if (deletedRows.length > 0) {
+    const deletedLastRow = deletedScansSheet.getLastRow();
+    deletedScansSheet.getRange(deletedLastRow + 1, 1, deletedRows.length, 11).setValues(deletedRows);
+
+    // Delete rows from Raw Scans sheet (in reverse order to maintain row indices)
+    rowsToDelete.reverse().forEach(rowIndex => {
+      rawScansSheet.deleteRow(rowIndex);
+    });
+
+    // Update Tally sheet
+    const tallySheet = ss.getSheetByName('Tally');
+    updateTally(tallySheet, rawScansSheet);
+  }
+
+  return createResponse(true, 'Scans deleted successfully', {
+    deletedCount: deletedRows.length,
+    deletedIds: syncIds
   });
 }
 

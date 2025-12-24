@@ -116,6 +116,13 @@ class IndexedDBService {
     await store.clear();
   }
 
+  async deleteScan(syncId: string) {
+    if (!this.db) throw new Error('Database not initialized');
+    const tx = this.db.transaction(['scans'], 'readwrite');
+    const store = tx.objectStore('scans');
+    await store.delete(syncId);
+  }
+
   async saveState(key: string, value: any) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readwrite');
@@ -240,6 +247,10 @@ class GoogleSheetsService {
 
   async syncManualEntries(stocktakeId: string, manualEntries: any[]) {
     return this.callAPI('syncManualEntries', { stocktakeId, manualEntries });
+  }
+
+  async deleteScans(stocktakeId: string, syncIds: string[]) {
+    return this.callAPI('deleteScans', { stocktakeId, syncIds });
   }
 }
 
@@ -377,22 +388,23 @@ export default function StockCounter() {
 
       // Load scans from IndexedDB
       const allScans = await dbService.getAllScans();
+
+      // Filter out deleted scans from display
+      const activeScans = allScans.filter((scan: any) => !scan.deleted);
+
       // Sort scans by timestamp (most recent first)
-      const sortedScans = [...allScans].sort((a, b) =>
+      const sortedScans = [...activeScans].sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       setScannedItems(sortedScans);
 
-<<<<<<< Updated upstream
-=======
       // Restore unsynced manual entries to manualCounts state
-      const manualEntries = currentStocktakeScans.filter((scan: any) =>
+      const manualEntries = activeScans.filter((scan: any) =>
         scan.isManualEntry && !scan.synced
       );
       setManualCounts(manualEntries);
 
-      // Count unsynced scans for current stocktake only
->>>>>>> Stashed changes
+      // Count unsynced scans (includes pending deletions)
       const unsynced = await dbService.getUnsyncedScans();
       setUnsyncedCount(unsynced.length);
 
@@ -478,11 +490,8 @@ export default function StockCounter() {
 
   const handleSelectStocktake = async (stocktake: any) => {
     try {
-<<<<<<< Updated upstream
-=======
       // Keep all scans from all stocktakes in IndexedDB - just switch the active stocktake
       // Scans are filtered by stocktakeId when displaying in loadSessionData
->>>>>>> Stashed changes
       setCurrentStocktake(stocktake);
       await dbService.saveState('currentStocktake', stocktake);
 
@@ -694,17 +703,19 @@ export default function StockCounter() {
   const handleDeleteScan = async (scan: any) => {
     if (!confirm(`Delete scan for ${scan.product}?`)) return;
 
-    // Delete from IndexedDB
-    if (dbService.db) {
-      const tx = dbService.db.transaction(['scans'], 'readwrite');
-      const store = tx.objectStore('scans');
-      await store.delete(scan.syncId);
-    }
+    // Mark as deleted in IndexedDB (soft delete for batch sync)
+    const deletedScan = {
+      ...scan,
+      deleted: true,
+      synced: false, // Needs to sync the deletion
+      deletedAt: new Date().toISOString()
+    };
+    await dbService.saveScan(deletedScan);
 
-    // Update UI
+    // Remove from UI immediately
     setScannedItems((prev: any[]) => prev.filter((s: any) => s.syncId !== scan.syncId));
 
-    // Update unsynced count
+    // Update unsynced count (includes pending deletions)
     const unsynced = await dbService.getUnsyncedScans();
     setUnsyncedCount(unsynced.length);
   };
@@ -728,49 +739,52 @@ export default function StockCounter() {
         return;
       }
 
-      const result = await apiService.syncScans(currentStocktake.id, unsyncedScans);
+      // Separate deleted scans from regular scans
+      const deletedScans = unsyncedScans.filter((scan: any) => scan.deleted === true);
+      const regularScans = unsyncedScans.filter((scan: any) => !scan.deleted);
 
-      if (result.success) {
-        // Mark scans as synced
-        await dbService.markScansSynced(result.syncedIds);
+      let totalSynced = 0;
 
-        // Update UI
-        setScannedItems((prev: any[]) =>
-          prev.map((scan: any) =>
-            result.syncedIds.includes(scan.syncId)
-              ? { ...scan, synced: true }
-              : scan
-          )
-        );
+      // Sync regular scans (additions/updates)
+      if (regularScans.length > 0) {
+        const result = await apiService.syncScans(currentStocktake.id, regularScans);
 
-<<<<<<< Updated upstream
-        setUnsyncedCount(0);
-        setSyncStatus(`Synced ${result.syncedCount} scans!`);
-        setTimeout(() => setSyncStatus(''), 3000);
-      } else {
-        setSyncStatus('Sync failed');
-        setTimeout(() => setSyncStatus(''), 3000);
-=======
-        if (manualResult.success) {
-          // Mark manual entries as synced in IndexedDB
-          const manualSyncIds = manualCounts.map((m: any) => m.syncId);
-          await dbService.markScansSynced(manualSyncIds);
+        if (result.success) {
+          // Mark scans as synced
+          await dbService.markScansSynced(result.syncedIds);
 
-          // Update UI to show manual entries as synced
+          // Update UI
           setScannedItems((prev: any[]) =>
             prev.map((scan: any) =>
-              manualSyncIds.includes(scan.syncId)
+              result.syncedIds.includes(scan.syncId)
                 ? { ...scan, synced: true }
                 : scan
             )
           );
 
-          // Clear manual entries from state after successful sync
-          setManualCounts([]);
-          syncedCount += manualResult.syncedCount;
+          totalSynced += result.syncedCount;
         }
->>>>>>> Stashed changes
       }
+
+      // Sync deletions
+      if (deletedScans.length > 0) {
+        const deleteResult = await apiService.deleteScans(
+          currentStocktake.id,
+          deletedScans.map((s: any) => s.syncId)
+        );
+
+        if (deleteResult.success) {
+          // Permanently remove deleted scans from IndexedDB
+          for (const scan of deletedScans) {
+            await dbService.deleteScan(scan.syncId);
+          }
+          totalSynced += deleteResult.deletedCount;
+        }
+      }
+
+      setUnsyncedCount(0);
+      setSyncStatus(`Synced ${totalSynced} items!`);
+      setTimeout(() => setSyncStatus(''), 3000);
     } catch (error) {
       console.error('Sync error:', error);
       setSyncStatus('Sync failed');
