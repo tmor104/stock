@@ -116,6 +116,13 @@ class IndexedDBService {
     await store.clear();
   }
 
+  async deleteScan(syncId: string) {
+    if (!this.db) throw new Error('Database not initialized');
+    const tx = this.db.transaction(['scans'], 'readwrite');
+    const store = tx.objectStore('scans');
+    await store.delete(syncId);
+  }
+
   async saveState(key: string, value: any) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readwrite');
@@ -713,36 +720,55 @@ export default function StockCounter() {
 
     try {
       const unsyncedScans = await dbService.getUnsyncedScans();
+      const hasManualEntries = manualCounts.length > 0;
 
-      if (unsyncedScans.length === 0) {
+      if (unsyncedScans.length === 0 && !hasManualEntries) {
         setSyncStatus('All synced!');
         setTimeout(() => setSyncStatus(''), 2000);
         setIsSyncing(false);
         return;
       }
 
-      const result = await apiService.syncScans(currentStocktake.id, unsyncedScans);
+      let syncedCount = 0;
 
-      if (result.success) {
-        // Mark scans as synced
-        await dbService.markScansSynced(result.syncedIds);
+      // Sync regular barcode scans
+      if (unsyncedScans.length > 0) {
+        const result = await apiService.syncScans(currentStocktake.id, unsyncedScans);
 
-        // Update UI
-        setScannedItems((prev: any[]) =>
-          prev.map((scan: any) =>
-            result.syncedIds.includes(scan.syncId)
-              ? { ...scan, synced: true }
-              : scan
-          )
+        if (result.success) {
+          // Mark scans as synced
+          await dbService.markScansSynced(result.syncedIds);
+
+          // Update UI
+          setScannedItems((prev: any[]) =>
+            prev.map((scan: any) =>
+              result.syncedIds.includes(scan.syncId)
+                ? { ...scan, synced: true }
+                : scan
+            )
+          );
+
+          syncedCount += result.syncedCount;
+        }
+      }
+
+      // Sync manual entries
+      if (hasManualEntries) {
+        const manualResult = await apiService.syncManualEntries(
+          currentStocktake.id,
+          manualCounts
         );
 
-        setUnsyncedCount(0);
-        setSyncStatus(`Synced ${result.syncedCount} scans!`);
-        setTimeout(() => setSyncStatus(''), 3000);
-      } else {
-        setSyncStatus('Sync failed');
-        setTimeout(() => setSyncStatus(''), 3000);
+        if (manualResult.success) {
+          // Clear manual entries after successful sync
+          setManualCounts([]);
+          syncedCount += manualResult.syncedCount;
+        }
       }
+
+      setUnsyncedCount(0);
+      setSyncStatus(`Synced ${syncedCount} items!`);
+      setTimeout(() => setSyncStatus(''), 3000);
     } catch (error) {
       console.error('Sync error:', error);
       setSyncStatus('Sync failed');
@@ -793,47 +819,6 @@ export default function StockCounter() {
       setTimeout(() => setSyncStatus(''), 3000);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert('Failed to sync kegs: ' + errorMessage);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const syncManualEntries = async () => {
-    if (!currentStocktake || isSyncing) return;
-
-    if (manualCounts.length === 0) {
-      alert('No manual entries to sync.');
-      return;
-    }
-
-    setIsSyncing(true);
-    setSyncStatus('Syncing manual entries...');
-
-    try {
-      const result = await apiService.syncManualEntries(
-        currentStocktake.id,
-        manualCounts
-      );
-
-      if (result.success) {
-        setSyncStatus(`Synced ${result.syncedCount} manual entries!`);
-
-        // Clear manual entries after successful sync
-        setManualCounts([]);
-
-        setTimeout(() => setSyncStatus(''), 3000);
-        alert(`Successfully synced ${result.syncedCount} manual entries to spreadsheet!`);
-      } else {
-        setSyncStatus('Sync failed');
-        setTimeout(() => setSyncStatus(''), 3000);
-        alert('Failed to sync manual entries: ' + result.message);
-      }
-    } catch (error) {
-      console.error('Manual entry sync error:', error);
-      setSyncStatus('Sync failed');
-      setTimeout(() => setSyncStatus(''), 3000);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert('Failed to sync manual entries: ' + errorMessage);
     } finally {
       setIsSyncing(false);
     }
@@ -1573,10 +1558,8 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
       await dbService.saveState('user', null);
       await dbService.saveState('currentStocktake', null);
 
-      // Clear all state variables
+      // Clear saved data display
       setSavedData([]);
-      setScannedItems([]);
-      setManualCounts([]);
       setUnsyncedCount(0);
 
       alert('✓ Cache cleared successfully!');
