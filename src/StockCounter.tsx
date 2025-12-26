@@ -1730,7 +1730,7 @@ interface SettingsPageProps {
   user: any;
   currentStocktake: any;
   onCreateStocktake: (name: string) => Promise<boolean>;
-  onSelectStocktake: (stocktake: any) => void;
+  onSelectStocktake: (stocktake: any) => Promise<void>;
   onLogout: () => void;
   onBack?: () => void;
   apiService: GoogleSheetsService;
@@ -1742,6 +1742,7 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
   const [availableStocktakes, setAvailableStocktakes] = useState<any[]>([]);
   const [selectedStocktake, setSelectedStocktake] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStocktake, setLoadingStocktake] = useState(false);
 
   useEffect(() => {
     if (mode === 'select') {
@@ -1774,6 +1775,16 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
     if (success) {
       setStocktakeName('');
+    }
+  };
+
+  const handleContinueStocktake = async () => {
+    setLoadingStocktake(true);
+    try {
+      await onSelectStocktake(selectedStocktake);
+    } finally {
+      // Note: This may not execute if navigation happens, but that's okay
+      setLoadingStocktake(false);
     }
   };
 
@@ -1885,10 +1896,11 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
                       </div>
                     </div>
                     <button
-                      onClick={() => onSelectStocktake(selectedStocktake)}
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 font-bold transition-all shadow-lg transform hover:scale-105"
+                      onClick={handleContinueStocktake}
+                      disabled={loadingStocktake}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-4 rounded-lg hover:from-blue-700 hover:to-indigo-800 disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed font-bold transition-all shadow-lg transform hover:scale-105 disabled:hover:scale-100"
                     >
-                      📦 Continue with this Stocktake
+                      {loadingStocktake ? '⏳ Loading...' : '📦 Continue with this Stocktake'}
                     </button>
                   </div>
                 )}
