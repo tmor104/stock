@@ -192,18 +192,31 @@ class IndexedDBService {
 // ============================================
 class GoogleSheetsService {
   async callAPI(action: string, data: Record<string, any> = {}) {
+    const startTime = performance.now();
+    console.log(`🌐 API Request: ${action}`, data);
+
     try {
+      const fetchStartTime = performance.now();
       // Use simple POST without custom headers to avoid CORS preflight
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({ action, ...data })
         // No Content-Type or mode = "simple request" = no preflight!
       });
+      const fetchDuration = (performance.now() - fetchStartTime) / 1000;
+      console.log(`🌐 Fetch completed for ${action} in ${fetchDuration.toFixed(2)}s`);
 
+      const parseStartTime = performance.now();
       const result = await response.json();
+      const parseDuration = (performance.now() - parseStartTime) / 1000;
+      console.log(`🌐 JSON parsing took ${parseDuration.toFixed(2)}s`);
+
+      const totalDuration = (performance.now() - startTime) / 1000;
+      console.log(`✅ API ${action} completed in ${totalDuration.toFixed(2)}s`);
       return result;
     } catch (error) {
-      console.error('API Error:', error);
+      const errorDuration = (performance.now() - startTime) / 1000;
+      console.error(`❌ API Error for ${action} after ${errorDuration.toFixed(2)}s:`, error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error('Network error: ' + errorMessage);
     }
@@ -1781,16 +1794,35 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
 
   const loadStocktakes = async () => {
     setLoading(true);
+    const startTime = performance.now();
+    console.log('⏱️ Starting to load stocktakes...');
+
     try {
+      const apiStartTime = performance.now();
       const result = await apiService.listStocktakes();
+      const apiEndTime = performance.now();
+      const apiDuration = (apiEndTime - apiStartTime) / 1000;
+
+      console.log(`⏱️ API call took: ${apiDuration.toFixed(2)}s`);
+
       if (result.success) {
         setAvailableStocktakes(result.stocktakes);
+        const totalDuration = (performance.now() - startTime) / 1000;
+        console.log(`✅ Stocktakes loaded successfully in ${totalDuration.toFixed(2)}s`);
+        console.log(`📊 Found ${result.stocktakes.length} stocktakes`);
+      } else {
+        console.error('❌ API returned success=false:', result.message);
+        alert('Failed to load stocktakes: ' + result.message);
       }
     } catch (error) {
+      const errorDuration = (performance.now() - startTime) / 1000;
+      console.error(`❌ Error after ${errorDuration.toFixed(2)}s:`, error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert('Failed to load stocktakes: ' + errorMessage);
     } finally {
       setLoading(false);
+      const totalDuration = (performance.now() - startTime) / 1000;
+      console.log(`⏱️ Total loadStocktakes duration: ${totalDuration.toFixed(2)}s`);
     }
   };
 
