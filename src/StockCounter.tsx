@@ -116,6 +116,13 @@ class IndexedDBService {
     await store.clear();
   }
 
+  async deleteScan(syncId: string) {
+    if (!this.db) throw new Error('Database not initialized');
+    const tx = this.db.transaction(['scans'], 'readwrite');
+    const store = tx.objectStore('scans');
+    await store.delete(syncId);
+  }
+
   async saveState(key: string, value: any) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readwrite');
@@ -241,6 +248,10 @@ class GoogleSheetsService {
   async syncManualEntries(stocktakeId: string, manualEntries: any[]) {
     return this.callAPI('syncManualEntries', { stocktakeId, manualEntries });
   }
+
+  async deleteScans(stocktakeId: string, syncIds: string[]) {
+    return this.callAPI('deleteScans', { stocktakeId, syncIds });
+  }
 }
 
 // ============================================
@@ -284,6 +295,8 @@ export default function StockCounter() {
   // Refs
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const onlineHandlerRef = useRef<() => void>();
+  const offlineHandlerRef = useRef<() => void>();
 
   // ============================================
   // INITIALIZATION
@@ -291,13 +304,20 @@ export default function StockCounter() {
   useEffect(() => {
     initializeApp();
 
-    // Online/offline detection
-    window.addEventListener('online', () => setIsOnline(true));
-    window.addEventListener('offline', () => setIsOnline(false));
+    // Online/offline detection - store function references for proper cleanup
+    onlineHandlerRef.current = () => setIsOnline(true);
+    offlineHandlerRef.current = () => setIsOnline(false);
+
+    window.addEventListener('online', onlineHandlerRef.current);
+    window.addEventListener('offline', offlineHandlerRef.current);
 
     return () => {
-      window.removeEventListener('online', () => setIsOnline(true));
-      window.removeEventListener('offline', () => setIsOnline(false));
+      if (onlineHandlerRef.current) {
+        window.removeEventListener('online', onlineHandlerRef.current);
+      }
+      if (offlineHandlerRef.current) {
+        window.removeEventListener('offline', offlineHandlerRef.current);
+      }
     };
   }, []);
 
@@ -368,12 +388,23 @@ export default function StockCounter() {
 
       // Load scans from IndexedDB
       const allScans = await dbService.getAllScans();
+
+      // Filter out deleted scans from display
+      const activeScans = allScans.filter((scan: any) => !scan.deleted);
+
       // Sort scans by timestamp (most recent first)
-      const sortedScans = [...allScans].sort((a, b) =>
+      const sortedScans = [...activeScans].sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
       setScannedItems(sortedScans);
 
+      // Restore unsynced manual entries to manualCounts state
+      const manualEntries = activeScans.filter((scan: any) =>
+        scan.isManualEntry && !scan.synced
+      );
+      setManualCounts(manualEntries);
+
+      // Count unsynced scans (includes pending deletions)
       const unsynced = await dbService.getUnsyncedScans();
       setUnsyncedCount(unsynced.length);
 
@@ -459,6 +490,8 @@ export default function StockCounter() {
 
   const handleSelectStocktake = async (stocktake: any) => {
     try {
+      // Keep all scans from all stocktakes in IndexedDB - just switch the active stocktake
+      // Scans are filtered by stocktakeId when displaying in loadSessionData
       setCurrentStocktake(stocktake);
       await dbService.saveState('currentStocktake', stocktake);
 
@@ -588,21 +621,20 @@ export default function StockCounter() {
       source: 'local_scan'
     };
 
+    // Save all scans (both manual and barcode) to IndexedDB
+    await dbService.saveScan(scan);
+
+    // Update UI
     if (isManualEntry) {
-      // Store manual entry separately
+      // Also update manualCounts for sync tracking
       setManualCounts((prev: any[]) => [scan, ...prev]);
-    } else {
-      // Save regular scan to IndexedDB
-      await dbService.saveScan(scan);
+    }
+    setScannedItems((prev: any[]) => [scan, ...prev]);
+    setUnsyncedCount((prev: number) => prev + 1);
 
-      // Update UI
-      setScannedItems((prev: any[]) => [scan, ...prev]);
-      setUnsyncedCount((prev: number) => prev + 1);
-
-      // Auto-sync every 10 scans
-      if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
-        await syncToGoogleSheets();
-      }
+    // Auto-sync every 10 scans
+    if ((unsyncedCount + 1) % SYNC_INTERVAL === 0 && isOnline) {
+      await syncToGoogleSheets();
     }
 
     // Reset form
@@ -671,17 +703,19 @@ export default function StockCounter() {
   const handleDeleteScan = async (scan: any) => {
     if (!confirm(`Delete scan for ${scan.product}?`)) return;
 
-    // Delete from IndexedDB
-    if (dbService.db) {
-      const tx = dbService.db.transaction(['scans'], 'readwrite');
-      const store = tx.objectStore('scans');
-      await store.delete(scan.syncId);
-    }
+    // Mark as deleted in IndexedDB (soft delete for batch sync)
+    const deletedScan = {
+      ...scan,
+      deleted: true,
+      synced: false, // Needs to sync the deletion
+      deletedAt: new Date().toISOString()
+    };
+    await dbService.saveScan(deletedScan);
 
-    // Update UI
+    // Remove from UI immediately
     setScannedItems((prev: any[]) => prev.filter((s: any) => s.syncId !== scan.syncId));
 
-    // Update unsynced count
+    // Update unsynced count (includes pending deletions)
     const unsynced = await dbService.getUnsyncedScans();
     setUnsyncedCount(unsynced.length);
   };
@@ -705,28 +739,52 @@ export default function StockCounter() {
         return;
       }
 
-      const result = await apiService.syncScans(currentStocktake.id, unsyncedScans);
+      // Separate deleted scans from regular scans
+      const deletedScans = unsyncedScans.filter((scan: any) => scan.deleted === true);
+      const regularScans = unsyncedScans.filter((scan: any) => !scan.deleted);
 
-      if (result.success) {
-        // Mark scans as synced
-        await dbService.markScansSynced(result.syncedIds);
+      let totalSynced = 0;
 
-        // Update UI
-        setScannedItems((prev: any[]) =>
-          prev.map((scan: any) =>
-            result.syncedIds.includes(scan.syncId)
-              ? { ...scan, synced: true }
-              : scan
-          )
+      // Sync regular scans (additions/updates)
+      if (regularScans.length > 0) {
+        const result = await apiService.syncScans(currentStocktake.id, regularScans);
+
+        if (result.success) {
+          // Mark scans as synced
+          await dbService.markScansSynced(result.syncedIds);
+
+          // Update UI
+          setScannedItems((prev: any[]) =>
+            prev.map((scan: any) =>
+              result.syncedIds.includes(scan.syncId)
+                ? { ...scan, synced: true }
+                : scan
+            )
+          );
+
+          totalSynced += result.syncedCount;
+        }
+      }
+
+      // Sync deletions
+      if (deletedScans.length > 0) {
+        const deleteResult = await apiService.deleteScans(
+          currentStocktake.id,
+          deletedScans.map((s: any) => s.syncId)
         );
 
-        setUnsyncedCount(0);
-        setSyncStatus(`Synced ${result.syncedCount} scans!`);
-        setTimeout(() => setSyncStatus(''), 3000);
-      } else {
-        setSyncStatus('Sync failed');
-        setTimeout(() => setSyncStatus(''), 3000);
+        if (deleteResult.success) {
+          // Permanently remove deleted scans from IndexedDB
+          for (const scan of deletedScans) {
+            await dbService.deleteScan(scan.syncId);
+          }
+          totalSynced += deleteResult.deletedCount;
+        }
       }
+
+      setUnsyncedCount(0);
+      setSyncStatus(`Synced ${totalSynced} items!`);
+      setTimeout(() => setSyncStatus(''), 3000);
     } catch (error) {
       console.error('Sync error:', error);
       setSyncStatus('Sync failed');
@@ -1408,6 +1466,49 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
     }
   };
 
+  const handleClearStocktake = async (stocktakeId: string, stocktakeName: string, stocktakeUnsynced: number) => {
+    if (stocktakeUnsynced > 0) {
+      if (!confirm(`⚠️ WARNING: "${stocktakeName}" has ${stocktakeUnsynced} unsynced scans!\n\nClearing will DELETE all unsynced data permanently.\n\nAre you sure you want to continue?`)) {
+        return;
+      }
+      if (!confirm(`This action cannot be undone. Clear "${stocktakeName}"?`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Clear all cached data for "${stocktakeName}"?`)) {
+        return;
+      }
+    }
+
+    try {
+      await dbService.init();
+
+      // Delete all scans for this stocktake
+      const allScans = await dbService.getAllScans();
+      const stocktakeScans = allScans.filter((scan: any) => scan.stocktakeId === stocktakeId);
+      for (const scan of stocktakeScans) {
+        await dbService.deleteScan(scan.syncId);
+      }
+
+      // Refresh saved data display
+      const remainingScans = await dbService.getAllScans();
+      setSavedData(remainingScans);
+
+      // Recalculate unsynced count
+      const unsynced = await dbService.getUnsyncedScans();
+      setUnsyncedCount(unsynced.length);
+
+      alert(`✓ Cleared "${stocktakeName}" successfully!`);
+
+      // If no scans left, return to login
+      if (remainingScans.length === 0) {
+        setViewingData(false);
+      }
+    } catch (error) {
+      alert('Failed to clear stocktake data');
+    }
+  };
+
   const handleClearData = async () => {
     if (unsyncedCount > 0) {
       if (!confirm(`⚠️ WARNING: You have ${unsyncedCount} unsynced scans!\n\nClearing cache will DELETE all unsynced data permanently.\n\nAre you sure you want to continue?`)) {
@@ -1494,6 +1595,12 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
                               ⚠️ {stocktakeUnsynced} unsynced
                             </p>
                           )}
+                          <button
+                            onClick={() => handleClearStocktake(stocktakeId, stocktakeName, stocktakeUnsynced)}
+                            className="mt-2 text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 font-semibold transition-colors"
+                          >
+                            Clear This Stocktake
+                          </button>
                         </div>
                       </div>
 
