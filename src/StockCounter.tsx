@@ -953,65 +953,65 @@ export default function StockCounter() {
   // RENDER: SCAN MODE
   // ============================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-2 sm:p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-6 mb-6 border border-blue-300">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-white drop-shadow-lg">📦 Stock Wizard</h1>
-              <p className="text-sm text-blue-100">
+        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-2xl shadow-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-blue-300">
+          <div className="flex justify-between items-start mb-4 gap-2">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">📦 Stock Wizard</h1>
+              <p className="text-xs sm:text-sm text-blue-100 truncate">
                 {user.username} • {currentStocktake?.name}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setAppMode('settings')}
                 className="bg-white/20 backdrop-blur-sm text-white p-2 rounded-lg hover:bg-white/30 transition-all shadow-lg"
                 title="Settings"
               >
-                <Settings size={20} />
+                <Settings size={18} className="sm:w-5 sm:h-5" />
               </button>
               <button
                 onClick={handleLogout}
                 className="bg-red-500/80 backdrop-blur-sm text-white p-2 rounded-lg hover:bg-red-600 transition-all shadow-lg"
                 title="Logout"
               >
-                <LogOut size={20} />
+                <LogOut size={18} className="sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
           {/* Scan Type Selector */}
           <div className="mb-4">
-            <label className="text-sm font-medium text-white mb-2 block">Scan Type</label>
+            <label className="text-xs sm:text-sm font-medium text-white mb-2 block">Scan Type</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setScanType('regular')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${
                   scanType === 'regular'
                     ? 'bg-white text-blue-600 shadow-lg'
                     : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
-                📦 Regular Scans
+                📦 Regular
               </button>
               <button
                 onClick={() => setScanType('kegs')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all transform hover:scale-105 ${
+                className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all text-sm sm:text-base ${
                   scanType === 'kegs'
                     ? 'bg-white text-orange-600 shadow-lg'
                     : 'bg-white/20 backdrop-blur-sm text-white hover:bg-white/30'
                 }`}
               >
-                🍺 Keg Counting
+                🍺 Kegs
               </button>
             </div>
           </div>
 
           {/* Location & Sync Status */}
-          <div className="flex gap-4 items-center">
-            <div className="flex-1">
+          <div className="space-y-3">
+            <div>
               <label className="text-sm font-medium text-white mb-1 block">Current Location</label>
               <select
                 value={currentLocation}
@@ -1024,32 +1024,32 @@ export default function StockCounter() {
               </select>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               {!isOnline && (
-                <div className="flex items-center gap-1 text-orange-300">
-                  <WifiOff size={18} />
-                  <span className="text-sm font-medium">Offline</span>
+                <div className="flex items-center gap-1 text-orange-300 bg-orange-900/30 px-2 py-1 rounded-lg">
+                  <WifiOff size={16} />
+                  <span className="text-xs font-medium">Offline</span>
                 </div>
               )}
 
               {unsyncedCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-yellow-200">
-                    {unsyncedCount} unsynced
+                <>
+                  <span className="text-xs font-medium text-yellow-200 bg-yellow-900/30 px-2 py-1 rounded-lg whitespace-nowrap">
+                    {unsyncedCount} pending
                   </span>
                   <button
                     onClick={syncToGoogleSheets}
                     disabled={!isOnline || isSyncing}
-                    className="bg-white/90 text-blue-600 px-3 py-2 rounded-lg hover:bg-white disabled:bg-white/30 transition-all shadow-lg font-semibold flex items-center gap-1"
+                    className="bg-white/90 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-white disabled:bg-white/30 transition-all shadow-lg font-semibold flex items-center gap-1 text-sm whitespace-nowrap"
                   >
-                    <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                    <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
                     Sync
                   </button>
-                </div>
+                </>
               )}
 
               {syncStatus && (
-                <span className="text-sm font-medium text-green-200">{syncStatus}</span>
+                <span className="text-xs font-medium text-green-200 bg-green-900/30 px-2 py-1 rounded-lg">{syncStatus}</span>
               )}
             </div>
           </div>
@@ -1057,9 +1057,9 @@ export default function StockCounter() {
 
         {/* Scan Interface */}
         {currentMode === 'scan' && !currentProduct && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-200">
-            <label className="block text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <Scan size={24} className="text-slate-600" /> Scan Barcode
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 mb-4 sm:mb-6 border border-slate-200">
+            <label className="block text-base sm:text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+              <Scan size={20} className="sm:w-6 sm:h-6 text-slate-600" /> Scan Barcode
             </label>
             <input
               ref={barcodeInputRef}
@@ -1073,23 +1073,27 @@ export default function StockCounter() {
                 }
               }}
               placeholder="Scan or enter barcode..."
-              className="w-full px-4 py-4 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
+              className="w-full px-4 py-3 sm:py-4 text-lg sm:text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500 transition-all"
               autoFocus
             />
 
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={() => setCurrentMode('search')}
-                className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-3 py-2 rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
+                className="bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 sm:px-3 py-2 rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all shadow-md flex items-center justify-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold"
               >
-                <Search size={16} /> Search Product
+                <Search size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Search Product</span>
+                <span className="sm:hidden">Search</span>
               </button>
               <button
                 onClick={syncToGoogleSheets}
                 disabled={!isOnline || isSyncing || unsyncedCount === 0}
-                className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-2 rounded-lg hover:from-emerald-600 hover:to-green-700 disabled:bg-slate-300 transition-all shadow-md flex items-center justify-center gap-1.5 text-sm font-semibold"
+                className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2 sm:px-3 py-2 rounded-lg hover:from-emerald-600 hover:to-green-700 disabled:bg-slate-300 transition-all shadow-md flex items-center justify-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-semibold"
               >
-                <RefreshCw size={16} /> Manual Sync
+                <RefreshCw size={14} className="sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Manual Sync</span>
+                <span className="sm:hidden">Sync</span>
               </button>
             </div>
           </div>
@@ -1273,11 +1277,11 @@ export default function StockCounter() {
 
         {/* Scanned Items List - Regular Scans */}
         {scanType === 'regular' && scannedItems.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-slate-200 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-800 mb-4 break-words">
               📦 Regular Scans ({scannedItems.length})
               {unsyncedCount > 0 && (
-                <span className="text-sm text-yellow-700 ml-2">
+                <span className="text-xs sm:text-sm text-yellow-700 ml-2 whitespace-nowrap">
                   ({unsyncedCount} unsynced)
                 </span>
               )}
@@ -1286,32 +1290,32 @@ export default function StockCounter() {
               {scannedItems.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${getSyncStatusColor(item)}`}
+                  className={`flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border ${getSyncStatusColor(item)}`}
                 >
-                  <div className="flex-1">
-                    <div className="font-semibold text-slate-800">{item.product}</div>
-                    <div className="text-sm text-slate-500">
+                  <div className="flex-1 min-w-0 w-full">
+                    <div className="font-semibold text-slate-800 break-words">{item.product}</div>
+                    <div className="text-xs sm:text-sm text-slate-500 break-words">
                       {item.barcode} • Qty: {item.quantity} • {item.location}
                     </div>
                     <div className="text-xs text-slate-400">
                       {new Date(item.timestamp).toLocaleString()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
                     {getSyncStatusIcon(item)}
                     <button
                       onClick={() => handleEditScan(item)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit scan"
                     >
-                      <Edit2 size={18} />
+                      <Edit2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </button>
                     <button
                       onClick={() => handleDeleteScan(item)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete scan"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </button>
                   </div>
                 </div>
@@ -1322,32 +1326,32 @@ export default function StockCounter() {
 
         {/* Manual Entries List */}
         {scanType === 'regular' && manualCounts.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-slate-200 mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
                 ✍️ Manual Entries ({manualCounts.length})
-                <span className="text-sm text-purple-600 ml-2">
+                <span className="block sm:inline text-xs sm:text-sm text-purple-600 sm:ml-2 mt-1 sm:mt-0">
                   (Not in barcode database)
                 </span>
               </h2>
               <button
                 onClick={syncManualEntries}
                 disabled={!isOnline || isSyncing}
-                className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+                className="bg-gradient-to-r from-purple-500 to-purple-700 text-white px-4 py-2 rounded-lg hover:from-purple-600 hover:to-purple-800 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold text-sm whitespace-nowrap"
               >
-                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                Sync Manual Entries
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                Sync Manual
               </button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {manualCounts.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50"
+                  className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 rounded-lg border border-purple-200 bg-purple-50"
                 >
-                  <div className="flex-1">
-                    <div className="font-semibold text-slate-800">✍️ {item.product}</div>
-                    <div className="text-sm text-slate-500">
+                  <div className="flex-1 min-w-0 w-full">
+                    <div className="font-semibold text-slate-800 break-words">✍️ {item.product}</div>
+                    <div className="text-xs sm:text-sm text-slate-500 break-words">
                       Manual Entry • Qty: {item.quantity} • {item.location}
                     </div>
                     <div className="text-xs text-slate-400">
@@ -1358,10 +1362,10 @@ export default function StockCounter() {
                     onClick={() => {
                       setManualCounts((prev: any[]) => prev.filter((c: any) => c.syncId !== item.syncId));
                     }}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 self-end sm:self-center"
                     title="Delete"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
                 </div>
               ))}
@@ -1371,55 +1375,57 @@ export default function StockCounter() {
 
         {/* Keg Counting Table */}
         {scanType === 'kegs' && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-slate-800">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-slate-200">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-800">
                 🍺 Keg Counting
               </h2>
               <button
                 onClick={syncKegs}
                 disabled={!isOnline || isSyncing || kegsList.every((k: any) => k.count === 0)}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold"
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-400 transition-all shadow-md flex items-center gap-2 font-semibold text-sm whitespace-nowrap"
               >
-                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
                 Sync Kegs
               </button>
             </div>
             {kegsList.length === 0 ? (
-              <p className="text-center text-slate-600 py-8">Loading kegs from Master Sheet...</p>
+              <p className="text-center text-slate-600 py-8 text-sm">Loading kegs from Master Sheet...</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-orange-100 border-b-2 border-orange-300">
-                      <th className="text-left p-3 font-bold text-orange-900">Keg Name</th>
-                      <th className="text-center p-3 font-bold text-orange-900">Count</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kegsList.map((keg, idx) => (
-                      <tr key={idx} className="border-b border-slate-200 hover:bg-orange-50">
-                        <td className="p-3 font-semibold text-slate-800">{keg.name}</td>
-                        <td className="p-3 text-center">
-                          <input
-                            type="number"
-                            value={keg.count}
-                            onChange={(e) => {
-                              const newCount = parseInt(e.target.value) || 0;
-                              setKegsList((prev: any[]) =>
-                                prev.map((k: any, i: number) =>
-                                  i === idx ? { ...k, count: newCount } : k
-                                )
-                              );
-                            }}
-                            className="w-24 px-3 py-2 text-center border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-lg"
-                            min="0"
-                          />
-                        </td>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle px-4 sm:px-0">
+                  <table className="min-w-full border-collapse">
+                    <thead>
+                      <tr className="bg-orange-100 border-b-2 border-orange-300">
+                        <th className="text-left p-2 sm:p-3 font-bold text-orange-900 text-sm sm:text-base">Keg Name</th>
+                        <th className="text-center p-2 sm:p-3 font-bold text-orange-900 text-sm sm:text-base whitespace-nowrap">Count</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {kegsList.map((keg, idx) => (
+                        <tr key={idx} className="border-b border-slate-200 hover:bg-orange-50">
+                          <td className="p-2 sm:p-3 font-semibold text-slate-800 text-sm sm:text-base break-words">{keg.name}</td>
+                          <td className="p-2 sm:p-3 text-center">
+                            <input
+                              type="number"
+                              value={keg.count}
+                              onChange={(e) => {
+                                const newCount = parseInt(e.target.value) || 0;
+                                setKegsList((prev: any[]) =>
+                                  prev.map((k: any, i: number) =>
+                                    i === idx ? { ...k, count: newCount } : k
+                                  )
+                                );
+                              }}
+                              className="w-20 sm:w-24 px-2 sm:px-3 py-1.5 sm:py-2 text-center border-2 border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-bold text-base sm:text-lg"
+                              min="0"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -1539,14 +1545,14 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
 
   if (viewingData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 p-2 sm:p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">📊 Saved Scan Data</h2>
+          <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8 overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-800 break-words">📊 Saved Scan Data</h2>
               <button
                 onClick={() => setViewingData(false)}
-                className="text-slate-600 hover:text-slate-800 flex items-center gap-2"
+                className="text-slate-600 hover:text-slate-800 flex items-center gap-2 whitespace-nowrap text-sm sm:text-base"
               >
                 <ArrowLeft size={20} /> Back to Login
               </button>
@@ -1582,22 +1588,24 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
                   const stocktakeUnsynced = scans.filter((s: any) => !s.synced).length;
 
                   return (
-                    <div key={key} className="border-2 border-slate-300 rounded-lg p-4 bg-white">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-bold text-lg text-slate-800">📦 {stocktakeName}</h3>
-                          <p className="text-xs text-slate-500">ID: {stocktakeId}</p>
+                    <div key={key} className="border-2 border-slate-300 rounded-lg p-3 sm:p-4 bg-white overflow-hidden">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg text-slate-800 break-words">📦 {stocktakeName}</h3>
+                          <p className="text-xs text-slate-500 break-all">ID: {stocktakeId}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-700">{scans.length} scans</p>
-                          {stocktakeUnsynced > 0 && (
-                            <p className="text-xs text-yellow-600 font-semibold">
-                              ⚠️ {stocktakeUnsynced} unsynced
-                            </p>
-                          )}
+                        <div className="flex flex-col sm:text-right gap-2 w-full sm:w-auto">
+                          <div className="flex justify-between sm:flex-col gap-2">
+                            <p className="text-sm font-semibold text-slate-700 whitespace-nowrap">{scans.length} scans</p>
+                            {stocktakeUnsynced > 0 && (
+                              <p className="text-xs text-yellow-600 font-semibold whitespace-nowrap">
+                                ⚠️ {stocktakeUnsynced} unsynced
+                              </p>
+                            )}
+                          </div>
                           <button
                             onClick={() => handleClearStocktake(stocktakeId, stocktakeName, stocktakeUnsynced)}
-                            className="mt-2 text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 font-semibold transition-colors"
+                            className="text-xs bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 font-semibold transition-colors whitespace-nowrap"
                           >
                             Clear This Stocktake
                           </button>
@@ -1626,16 +1634,16 @@ function LoginPage({ onLogin, dbService }: LoginPageProps) {
                             <p className="text-sm font-semibold text-slate-600 mb-2">
                               {sourceLabel} ({sourceScans.length})
                             </p>
-                            <div className="max-h-64 overflow-y-auto space-y-2 pl-3">
+                            <div className="max-h-64 overflow-y-auto space-y-2 pl-0 sm:pl-3">
                               {sourceScans.map((scan: any, idx: number) => (
-                                <div key={idx} className="p-2 border rounded bg-slate-50 text-sm">
-                                  <div className="font-semibold">{scan.product}</div>
-                                  <div className="text-xs text-slate-600">
+                                <div key={idx} className="p-2 border rounded bg-slate-50 text-sm overflow-hidden">
+                                  <div className="font-semibold break-words">{scan.product}</div>
+                                  <div className="text-xs text-slate-600 break-words">
                                     Qty: {scan.quantity} • {scan.location} • {scan.user}
                                   </div>
-                                  <div className="text-xs text-slate-400">
+                                  <div className="text-xs text-slate-400 break-words">
                                     {new Date(scan.timestamp).toLocaleString()}
-                                    {!scan.synced && <span className="ml-2 text-yellow-600 font-semibold">⚠️ Unsynced</span>}
+                                    {!scan.synced && <span className="ml-2 text-yellow-600 font-semibold whitespace-nowrap">⚠️ Unsynced</span>}
                                   </div>
                                 </div>
                               ))}
