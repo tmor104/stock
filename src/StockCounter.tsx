@@ -541,22 +541,44 @@ export default function StockCounter() {
       if (productsResult.success) {
         setProductDatabase(productsResult.products);
         await dbService.saveProducts(productsResult.products);
+        console.log('✅ Products loaded:', productsResult.products.length);
+      } else {
+        console.warn('⚠️ Failed to load products from API:', productsResult.message);
       }
 
       // Load locations
       const locationsResult = await apiService.getLocations();
-      if (locationsResult.success) {
+      console.log('📍 Locations API response:', locationsResult);
+
+      if (locationsResult.success && locationsResult.locations && locationsResult.locations.length > 0) {
         setLocations(locationsResult.locations);
         await dbService.saveLocations(locationsResult.locations);
+        console.log('✅ Locations loaded:', locationsResult.locations);
 
         // Set default location if not set
-        if (!currentLocation && locationsResult.locations.length > 0) {
+        if (!currentLocation) {
           setCurrentLocation(locationsResult.locations[0]);
           await dbService.saveState('currentLocation', locationsResult.locations[0]);
+          console.log('📍 Default location set:', locationsResult.locations[0]);
+        }
+      } else {
+        console.warn('⚠️ Failed to load locations from API or empty locations array');
+        // Try to load from cache
+        const cachedLocations = await dbService.getLocations();
+        if (cachedLocations.length > 0) {
+          setLocations(cachedLocations);
+          console.log('✅ Loaded locations from cache:', cachedLocations);
+          if (!currentLocation) {
+            setCurrentLocation(cachedLocations[0]);
+            await dbService.saveState('currentLocation', cachedLocations[0]);
+          }
+        } else {
+          console.error('❌ No locations available in cache either');
+          alert('Warning: No locations could be loaded. Please check your Master Sheet has locations configured.');
         }
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
       alert('Could not load product database. Using offline data if available.');
 
       // Fallback to cached data
@@ -564,6 +586,13 @@ export default function StockCounter() {
       const cachedLocations = await dbService.getLocations();
       setProductDatabase(cachedProducts);
       setLocations(cachedLocations);
+
+      if (cachedLocations.length > 0 && !currentLocation) {
+        setCurrentLocation(cachedLocations[0]);
+        await dbService.saveState('currentLocation', cachedLocations[0]);
+      }
+
+      console.log('📦 Loaded from cache - Products:', cachedProducts.length, 'Locations:', cachedLocations.length);
     }
   };
 
