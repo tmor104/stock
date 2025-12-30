@@ -1,5 +1,57 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Package, Scan, ArrowLeft, Settings, LogOut, RefreshCw, WifiOff, CheckCircle, Clock, Edit2, Trash2 } from 'lucide-react';
+
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
+interface Scan {
+  syncId: string;
+  barcode: string;
+  product: string;
+  quantity: number;
+  location: string;
+  user: string;
+  timestamp: string;
+  stockLevel?: number;
+  value?: number;
+  synced: boolean;
+  isManualEntry?: boolean;
+  stocktakeId: string;
+  stocktakeName: string;
+  source?: 'local_scan' | 'loaded_from_server' | 'unknown';
+  deleted?: boolean;
+  deletedAt?: string;
+  lastModified?: string;
+}
+
+interface Product {
+  barcode: string | number;
+  product: string;
+  currentStock?: number;
+  value?: number;
+  isManualEntry?: boolean;
+}
+
+interface User {
+  username: string;
+}
+
+interface Stocktake {
+  id: string;
+  name: string;
+  url?: string;
+}
+
+interface Keg {
+  name: string;
+  count: number;
+}
+
+interface APIResponse {
+  success: boolean;
+  message?: string;
+  [key: string]: any;
+}
 
 // ============================================
 // CONFIGURATION
@@ -57,14 +109,14 @@ class IndexedDBService {
     });
   }
 
-  async saveScan(scan: any) {
+  async saveScan(scan: Scan) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readwrite');
     const store = tx.objectStore('scans');
     await store.put(scan);
   }
 
-  async getUnsyncedScans(): Promise<any[]> {
+  async getUnsyncedScans(): Promise<Scan[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
@@ -80,7 +132,7 @@ class IndexedDBService {
     });
   }
 
-  async getAllScans(): Promise<any[]> {
+  async getAllScans(): Promise<Scan[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readonly');
     const store = tx.objectStore('scans');
@@ -92,21 +144,35 @@ class IndexedDBService {
     });
   }
 
-  async markScansSynced(syncIds: string[]) {
+  async markScansSynced(syncIds: string[]): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['scans'], 'readwrite');
     const store = tx.objectStore('scans');
 
-    for (const syncId of syncIds) {
-      const request = store.get(syncId);
-      const scan: any = await new Promise((resolve) => {
+    // Batch all operations: first get all scans, then update them
+    const getPromises = syncIds.map(syncId => {
+      return new Promise<Scan | undefined>((resolve, reject) => {
+        const request = store.get(syncId);
         request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
       });
-      if (scan) {
-        scan.synced = true;
-        await store.put(scan);
-      }
-    }
+    });
+
+    const scans = await Promise.all(getPromises);
+    
+    // Update all scans in a single batch
+    const updatePromises = scans
+      .filter((scan): scan is Scan => scan !== undefined)
+      .map(scan => {
+        const updatedScan: Scan = { ...scan, synced: true };
+        return new Promise<void>((resolve, reject) => {
+          const request = store.put(updatedScan);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      });
+
+    await Promise.all(updatePromises);
   }
 
   async clearScans() {
@@ -123,14 +189,14 @@ class IndexedDBService {
     await store.delete(syncId);
   }
 
-  async saveState(key: string, value: any) {
+  async saveState(key: string, value: unknown) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readwrite');
     const store = tx.objectStore('appState');
     await store.put({ key, value });
   }
 
-  async getState(key: string): Promise<any> {
+  async getState(key: string): Promise<unknown> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['appState'], 'readonly');
     const store = tx.objectStore('appState');
@@ -142,7 +208,7 @@ class IndexedDBService {
     });
   }
 
-  async saveProducts(products: any[]) {
+  async saveProducts(products: Product[]) {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['products'], 'readwrite');
     const store = tx.objectStore('products');
@@ -152,7 +218,7 @@ class IndexedDBService {
     }
   }
 
-  async getProducts(): Promise<any[]> {
+  async getProducts(): Promise<Product[]> {
     if (!this.db) throw new Error('Database not initialized');
     const tx = this.db.transaction(['products'], 'readonly');
     const store = tx.objectStore('products');
@@ -191,7 +257,7 @@ class IndexedDBService {
 // GOOGLE SHEETS API SERVICE
 // ============================================
 class GoogleSheetsService {
-  async callAPI(action: string, data: Record<string, any> = {}) {
+  async callAPI(action: string, data: Record<string, unknown> = {}): Promise<APIResponse> {
     try {
       // Use simple POST without custom headers to avoid CORS preflight
       const response = await fetch(APPS_SCRIPT_URL, {
@@ -200,7 +266,13 @@ class GoogleSheetsService {
         // No Content-Type or mode = "simple request" = no preflight!
       });
 
-      const result = await response.json();
+      // Validate response before parsing
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const result = await response.json() as APIResponse;
       return result;
     } catch (error) {
       console.error('API Error:', error);
@@ -229,7 +301,7 @@ class GoogleSheetsService {
     return this.callAPI('listStocktakes');
   }
 
-  async syncScans(stocktakeId: string, scans: any[]) {
+  async syncScans(stocktakeId: string, scans: Scan[]) {
     return this.callAPI('syncScans', { stocktakeId, scans });
   }
 
@@ -241,11 +313,11 @@ class GoogleSheetsService {
     return this.callAPI('getKegs');
   }
 
-  async syncKegs(stocktakeId: string, kegs: any[], location: string, user: string) {
+  async syncKegs(stocktakeId: string, kegs: Keg[], location: string, user: string) {
     return this.callAPI('syncKegs', { stocktakeId, kegs, location, user });
   }
 
-  async syncManualEntries(stocktakeId: string, manualEntries: any[]) {
+  async syncManualEntries(stocktakeId: string, manualEntries: Scan[]) {
     return this.callAPI('syncManualEntries', { stocktakeId, manualEntries });
   }
 
@@ -263,33 +335,33 @@ export default function StockCounter() {
   const [apiService] = useState(() => new GoogleSheetsService());
 
   // App State
-  const [appMode, setAppMode] = useState('login'); // login, settings, scan
-  const [user, setUser] = useState<any>(null);
-  const [currentStocktake, setCurrentStocktake] = useState<any>(null);
+  const [appMode, setAppMode] = useState<'login' | 'settings' | 'scan'>('login');
+  const [user, setUser] = useState<User | null>(null);
+  const [currentStocktake, setCurrentStocktake] = useState<Stocktake | null>(null);
   const [currentLocation, setCurrentLocation] = useState('');
 
   // Data
-  const [productDatabase, setProductDatabase] = useState<any[]>([]);
+  const [productDatabase, setProductDatabase] = useState<Product[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
-  const [scannedItems, setScannedItems] = useState<any[]>([]);
+  const [scannedItems, setScannedItems] = useState<Scan[]>([]);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
-  const [kegsList, setKegsList] = useState<any[]>([]);
+  const [kegsList, setKegsList] = useState<Keg[]>([]);
 
   // Scan Mode
-  const [scanType, setScanType] = useState('regular'); // regular, manual, kegs
-  const [currentMode, setCurrentMode] = useState('scan');
+  const [scanType, setScanType] = useState<'regular' | 'kegs'>('regular');
+  const [currentMode, setCurrentMode] = useState<'scan' | 'search'>('scan');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [quantityInput, setQuantityInput] = useState('');
-  const [currentProduct, setCurrentProduct] = useState<any>(null);
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [manualCounts, setManualCounts] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [manualCounts, setManualCounts] = useState<Scan[]>([]);
 
   // UI State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
-  const [editingScan, setEditingScan] = useState<any>(null);
+  const [editingScan, setEditingScan] = useState<Scan | null>(null);
   const [editQuantity, setEditQuantity] = useState('');
 
   // Refs
@@ -301,6 +373,93 @@ export default function StockCounter() {
   // ============================================
   // INITIALIZATION
   // ============================================
+  const loadKegs = useCallback(async () => {
+    try {
+      const result = await apiService.getKegs();
+      if (result.success) {
+        // Initialize kegs with count = 0
+        const kegsWithCounts = result.kegs.map((kegName: string) => ({
+          name: kegName,
+          count: 0
+        }));
+        setKegsList(kegsWithCounts);
+      }
+    } catch (error) {
+      console.error('Error loading kegs:', error);
+      alert('Failed to load kegs from Master Sheet');
+    }
+  }, [apiService]);
+
+  const loadSessionData = useCallback(async () => {
+    try {
+      // Load products from IndexedDB
+      const cachedProducts = await dbService.getProducts();
+      if (cachedProducts.length > 0) {
+        setProductDatabase(cachedProducts);
+      }
+
+      // Load locations from IndexedDB
+      const cachedLocations = await dbService.getLocations();
+      if (cachedLocations.length > 0) {
+        setLocations(cachedLocations);
+      }
+
+      // Load scans from IndexedDB
+      const allScans = await dbService.getAllScans();
+
+      // Filter out deleted scans from display
+      const activeScans = allScans.filter((scan: Scan) => !scan.deleted);
+
+      // Sort scans by timestamp (most recent first)
+      const sortedScans = [...activeScans].sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setScannedItems(sortedScans);
+
+      // Restore unsynced manual entries to manualCounts state
+      const manualEntries = activeScans.filter((scan: Scan) =>
+        scan.isManualEntry && !scan.synced
+      );
+      setManualCounts(manualEntries);
+
+      // Count unsynced scans (includes pending deletions)
+      const unsynced = await dbService.getUnsyncedScans();
+      setUnsyncedCount(unsynced.length);
+
+      // Note: syncToGoogleSheets is called conditionally but not included in deps
+      // to avoid circular dependency. It will use current state values when called.
+    } catch (error) {
+      console.error('Error loading session data:', error);
+    }
+  }, [dbService]);
+
+  const initializeApp = useCallback(async () => {
+    try {
+      await dbService.init();
+
+      // Restore session
+      const savedUser = await dbService.getState('user') as User | null;
+      const savedStocktake = await dbService.getState('currentStocktake') as Stocktake | null;
+      const savedLocation = await dbService.getState('currentLocation') as string | null;
+
+      if (savedUser) {
+        setUser(savedUser);
+        if (savedStocktake) {
+          setCurrentStocktake(savedStocktake);
+          setCurrentLocation(savedLocation || '');
+          setAppMode('scan');
+          await loadSessionData();
+        } else {
+          setAppMode('settings');
+        }
+      }
+    } catch (error) {
+      console.error('Initialization error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert('Failed to initialize app: ' + errorMessage);
+    }
+  }, [dbService, loadSessionData]);
+
   useEffect(() => {
     initializeApp();
 
@@ -319,103 +478,14 @@ export default function StockCounter() {
         window.removeEventListener('offline', offlineHandlerRef.current);
       }
     };
-  }, []);
+  }, [initializeApp]);
 
   // Load kegs when switching to kegs mode
   useEffect(() => {
     if (scanType === 'kegs' && kegsList.length === 0) {
       loadKegs();
     }
-  }, [scanType]);
-
-  const loadKegs = async () => {
-    try {
-      const result = await apiService.getKegs();
-      if (result.success) {
-        // Initialize kegs with count = 0
-        const kegsWithCounts = result.kegs.map((kegName: string) => ({
-          name: kegName,
-          count: 0
-        }));
-        setKegsList(kegsWithCounts);
-      }
-    } catch (error) {
-      console.error('Error loading kegs:', error);
-      alert('Failed to load kegs from Master Sheet');
-    }
-  };
-
-  const initializeApp = async () => {
-    try {
-      await dbService.init();
-
-      // Restore session
-      const savedUser = await dbService.getState('user');
-      const savedStocktake = await dbService.getState('currentStocktake');
-      const savedLocation = await dbService.getState('currentLocation');
-
-      if (savedUser) {
-        setUser(savedUser);
-        if (savedStocktake) {
-          setCurrentStocktake(savedStocktake);
-          setCurrentLocation(savedLocation || '');
-          setAppMode('scan');
-          await loadSessionData();
-        } else {
-          setAppMode('settings');
-        }
-      }
-    } catch (error) {
-      console.error('Initialization error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert('Failed to initialize app: ' + errorMessage);
-    }
-  };
-
-  const loadSessionData = async () => {
-    try {
-      // Load products from IndexedDB
-      const cachedProducts = await dbService.getProducts();
-      if (cachedProducts.length > 0) {
-        setProductDatabase(cachedProducts);
-      }
-
-      // Load locations from IndexedDB
-      const cachedLocations = await dbService.getLocations();
-      if (cachedLocations.length > 0) {
-        setLocations(cachedLocations);
-      }
-
-      // Load scans from IndexedDB
-      const allScans = await dbService.getAllScans();
-
-      // Filter out deleted scans from display
-      const activeScans = allScans.filter((scan: any) => !scan.deleted);
-
-      // Sort scans by timestamp (most recent first)
-      const sortedScans = [...activeScans].sort((a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-      setScannedItems(sortedScans);
-
-      // Restore unsynced manual entries to manualCounts state
-      const manualEntries = activeScans.filter((scan: any) =>
-        scan.isManualEntry && !scan.synced
-      );
-      setManualCounts(manualEntries);
-
-      // Count unsynced scans (includes pending deletions)
-      const unsynced = await dbService.getUnsyncedScans();
-      setUnsyncedCount(unsynced.length);
-
-      // Try to sync if online
-      if (isOnline && unsynced.length > 0) {
-        await syncToGoogleSheets();
-      }
-    } catch (error) {
-      console.error('Error loading session data:', error);
-    }
-  };
+  }, [scanType, kegsList.length, loadKegs]);
 
   // ============================================
   // AUTHENTICATION
@@ -1729,19 +1799,13 @@ interface SettingsPageProps {
 }
 
 function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStocktake, onLogout, onBack, apiService }: SettingsPageProps) {
-  const [mode, setMode] = useState('menu'); // menu, create, select
+  const [mode, setMode] = useState<'menu' | 'create' | 'select'>('menu');
   const [stocktakeName, setStocktakeName] = useState('');
-  const [availableStocktakes, setAvailableStocktakes] = useState<any[]>([]);
-  const [selectedStocktake, setSelectedStocktake] = useState<any>(null);
+  const [availableStocktakes, setAvailableStocktakes] = useState<Stocktake[]>([]);
+  const [selectedStocktake, setSelectedStocktake] = useState<Stocktake | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (mode === 'select') {
-      loadStocktakes();
-    }
-  }, [mode]);
-
-  const loadStocktakes = async () => {
+  const loadStocktakes = useCallback(async () => {
     setLoading(true);
     try {
       const result = await apiService.listStocktakes();
@@ -1754,9 +1818,15 @@ function SettingsPage({ user, currentStocktake, onCreateStocktake, onSelectStock
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiService]);
 
-  const handleCreate = async (e: any) => {
+  useEffect(() => {
+    if (mode === 'select') {
+      loadStocktakes();
+    }
+  }, [mode, loadStocktakes]);
+
+  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!stocktakeName.trim()) return;
 
